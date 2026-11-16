@@ -17,6 +17,8 @@ import { registerAuthRoutes } from "./modules/auth/authRoutes.js";
 import { registerProjectRoutes } from "./modules/projects/projectRoutes.js";
 import { ProjectRepository } from "./modules/projects/projectRepository.js";
 import { ProjectService } from "./modules/projects/projectService.js";
+import { ReportService } from "./modules/reports/reportService.js";
+import { registerReportRoutes } from "./modules/reports/reportRoutes.js";
 import { registerHealthRoutes } from "./health/routes.js";
 
 export interface BuildAppOptions {
@@ -72,10 +74,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   const projectRepo = new ProjectRepository(db);
   const projectService = new ProjectService(projectRepo, audit);
+  const reportService = new ReportService(projectService);
 
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
   await app.register(registerProjectRoutes, { service: projectService, tokens });
+  await app.register(registerReportRoutes, { service: reportService, tokens });
 
   return app;
 }
