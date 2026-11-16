@@ -3,6 +3,8 @@ import { makeAuthGuard, currentUserId } from "../auth/authMiddleware.js";
 import { parseBody } from "../../middleware/validate.js";
 import { docsMeta } from "../../docs/openapi.js";
 import type { TokenService } from "../auth/tokens.js";
+import { EventBus } from "../../events/eventBus.js";
+import { publishProjectEvent } from "../../events/sseRoutes.js";
 import {
   createProjectSchema,
   draftBodySchema,
@@ -14,6 +16,7 @@ import { ProjectService } from "./projectService.js";
 export interface ProjectRouteDeps {
   service: ProjectService;
   tokens: TokenService;
+  events: EventBus;
 }
 
 /** REST endpoints for projects; delegates all rules to ProjectService. */
@@ -24,6 +27,7 @@ export async function registerProjectRoutes(app: FastifyInstance, deps: ProjectR
   app.post("/api/projects", { ...protectedOpts, schema: docsMeta.createProject }, async (request, reply) => {
     const body = parseBody(createProjectSchema, request.body);
     const project = deps.service.create(currentUserId(request), body, request.requestId);
+    publishProjectEvent(deps.events, "project.updated", project.id, project.ownerId);
     void reply.status(201);
     return project;
   });
@@ -41,12 +45,17 @@ export async function registerProjectRoutes(app: FastifyInstance, deps: ProjectR
   app.patch("/api/projects/:id", protectedOpts, async (request) => {
     const { id } = request.params as { id: string };
     const body = parseBody(updateProjectSchema, request.body);
-    return deps.service.update(currentUserId(request), id, body, request.requestId);
+    const actorId = currentUserId(request);
+    const project = deps.service.update(actorId, id, body, request.requestId);
+    publishProjectEvent(deps.events, "project.updated", id, actorId);
+    return project;
   });
 
   app.delete("/api/projects/:id", protectedOpts, async (request, reply) => {
     const { id } = request.params as { id: string };
-    deps.service.remove(currentUserId(request), id, request.requestId);
+    const actorId = currentUserId(request);
+    deps.service.remove(actorId, id, request.requestId);
+    publishProjectEvent(deps.events, "project.deleted", id, actorId);
     void reply.status(204);
     return undefined;
   });
@@ -54,16 +63,25 @@ export async function registerProjectRoutes(app: FastifyInstance, deps: ProjectR
   app.put("/api/projects/:id/draft", protectedOpts, async (request) => {
     const { id } = request.params as { id: string };
     const { draft } = parseBody(draftBodySchema, request.body);
-    return deps.service.editDraft(currentUserId(request), id, draft, request.requestId);
+    const actorId = currentUserId(request);
+    const project = deps.service.editDraft(actorId, id, draft, request.requestId);
+    publishProjectEvent(deps.events, "project.updated", id, actorId);
+    return project;
   });
 
   app.post("/api/projects/:id/apply", protectedOpts, async (request) => {
     const { id } = request.params as { id: string };
-    return deps.service.applyDraft(currentUserId(request), id, request.requestId);
+    const actorId = currentUserId(request);
+    const project = deps.service.applyDraft(actorId, id, request.requestId);
+    publishProjectEvent(deps.events, "project.updated", id, actorId);
+    return project;
   });
 
   app.post("/api/projects/:id/revert", protectedOpts, async (request) => {
     const { id } = request.params as { id: string };
-    return deps.service.revertDraft(currentUserId(request), id, request.requestId);
+    const actorId = currentUserId(request);
+    const project = deps.service.revertDraft(actorId, id, request.requestId);
+    publishProjectEvent(deps.events, "project.updated", id, actorId);
+    return project;
   });
 }

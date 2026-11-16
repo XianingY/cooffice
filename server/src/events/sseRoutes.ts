@@ -3,12 +3,17 @@ import { EventBus } from "./eventBus.js";
 import { makeAuthGuard } from "../modules/auth/authMiddleware.js";
 import type { TokenService } from "../modules/auth/tokens.js";
 
+export interface SseRouteOptions {
+  bus: EventBus;
+  tokens: TokenService;
+}
+
 /** SSE endpoint streams project-scoped events with heartbeats and cleanup. */
 export async function registerSseRoutes(
   app: FastifyInstance,
-  bus: EventBus,
-  tokens: TokenService,
+  options: SseRouteOptions,
 ): Promise<void> {
+  const { bus, tokens } = options;
   const guard = makeAuthGuard(tokens);
 
   app.get("/api/projects/:id/events", { preHandler: guard }, async (request, reply) => {

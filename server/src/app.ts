@@ -21,6 +21,8 @@ import { ReportService } from "./modules/reports/reportService.js";
 import { registerReportRoutes } from "./modules/reports/reportRoutes.js";
 import { registerHealthRoutes } from "./health/routes.js";
 import { registerApiDocs } from "./docs/openapi.js";
+import { EventBus } from "./events/eventBus.js";
+import { registerSseRoutes } from "./events/sseRoutes.js";
 
 export interface BuildAppOptions {
   env: Env;
@@ -76,13 +78,17 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const projectRepo = new ProjectRepository(db);
   const projectService = new ProjectService(projectRepo, audit);
   const reportService = new ReportService(projectService);
+  const eventBus = new EventBus();
+  // Expose for tooling/tests; consumers should still use the SSE endpoint.
+  Object.assign(app, { eventBus });
 
   // Swagger must initialize before routes so it can collect their schemas.
   await app.register(registerApiDocs);
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
-  await app.register(registerProjectRoutes, { service: projectService, tokens });
+  await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerReportRoutes, { service: reportService, tokens });
+  await app.register(registerSseRoutes, { bus: eventBus, tokens });
 
   return app;
 }
