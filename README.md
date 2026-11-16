@@ -1,117 +1,99 @@
 # What-if Report（数据沙盘）
 
-一个本地优先的表格修改影响预览工具：导入固定格式的 Excel，在浏览器中试改数据，查看指标和报告结论会受到什么影响，确认后导出新的 Excel 和 Word。
+一个**本地优先、可选云端**的全栈工具:导入固定格式的 Excel/CSV,在浏览器中试改数据,查看指标和报告结论的变化,确认后导出新的 Excel 和 Word。登录后可把项目保存到 SQLite 后端,跨设备继续工作;不登录也能完成全部本地功能。
 
-> **项目状态：v1.0.0 稳定版本。** 本地优先、完整可用;单元测试、端到端测试、CI 与可复现发布流程齐备。代码已推送到 GitHub;GitHub Pages 的实际部署需在获得授权后推送版本标签触发。
+> **项目状态:v1.0.0 稳定版本。** 前端、后端、认证、数据库、API、实时通知、CI 与容器部署均已实现并通过本地与端到端验证。
 
-![三栏影响预览：编辑华东当前值后，指标、排名与报告结论同步变化并高亮来源](docs/screenshot.png)
+![三栏影响预览:编辑华东当前值后,指标、排名与报告结论同步变化并高亮来源](docs/screenshot.png)
 
-## 首版功能
-
-| 能力 | 行为 |
-|---|---|
-| 导入 | 固定结构 `.xlsx`（`Sales` 工作表，表头 `region/previous/current`）或 `.csv`;≤10 MiB、1～1000 行；拒绝公式、文本数字、空值、负数、非有限值与重复区域 |
-| 列映射 | CSV 导入时自动检测区域/上期/当前列,用户确认后才写入项目 |
-| 项目文件 | 导出/导入版本化 `.json`,独立保留已确认版本、草稿与报告配置 |
-| 报告配置 | 切换报告块显示与顺序;确定性区域柱状图;配置随项目文件保存 |
-| 试改 | 仅 `current` 可编辑，`previous` 只读；修改只写入草稿，原始文件永不覆盖 |
-| 预览 | 总销售额、同比增长率、第一区域三项指标，以及指标、排名、报告结论的变化前后对照 |
-| 来源定位 | 点击影响项，同时高亮对应来源单元格与关联报告块 |
-| 应用与撤销 | 应用全部草稿或撤销回已确认版本，两者都会清空影响列表 |
-| 导出 | 从已确认 `baseline` 生成新的 `.xlsx` 与 `.docx`；存在未应用草稿时常驻提示，导出内容不含草稿 |
-| 本地恢复 | `localStorage`（键 `what-if-report:project:v1`）保存草稿；刷新恢复；二次确认后彻底清除并回到虚构示例 |
-| 模板下载 | 提供虚构示例与固定模板文件 |
-
-## 隐私原则
-
-- 文件只在浏览器本地处理，不上传服务器。
-- 不需要账号，不包含分析、广告或追踪脚本。
-- 原始文件不会被覆盖，导出总是生成新文件。
-- 页面加载后的核心流程不发起携带文件内容的网络请求;生产构建冒烟测试已验证无外部请求。v0.4.0 的 AI 润色是用户主动触发的可选功能,未使用时不发任何请求;密钥仅存于对话框运行时状态,不落盘、不入日志。AI 结果经数值护栏校验,不改变任何数值即为确定性回退。
-- 共享电脑用户应在离开前使用「清除本地项目」删除本地草稿。
-
-首版不承诺离线首次打开或离线刷新。
-
-## 输入格式
-
-`.xlsx` 文件必须包含 `Sales` 工作表,表头如下(`.csv` 可通过列映射向导导入同构数据)：
-
-| region | previous | current |
-|---|---:|---:|
-| 华东 | 100 | 120 |
-| 华西 | 90 | 100 |
-| 华北 | 60 | 80 |
-
-限制：文件不超过 10 MiB，数据为 1～1000 行，区域名称唯一，数值为直接填写的非负有限数字。公式、文本数字、空值和负数不被接受。
-
-初始结果：当前总额 300、上期总额 250、同比增长率 20%、第一区域华东。将华东 `current` 从 120 改为 90 后：当前总额 270、同比增长率 8%、第一区域华西。
-
-## 首版不做什么
-
-| 不做 | 原因 |
-|---|---|
-| 解析任意 Excel、公式求值、跨工作簿引用 | 保证校验与来源定位可验证 |
-| WPS 加载项、在线协作、云同步、账号系统 | 保持无服务端与本地优先 |
-| 通用 AI 聊天或 AI 数值计算 | 报告使用确定性中文模板 |
-| 自定义指标、报告模板、插件市场 | 控制首版维护成本 |
-| 覆盖用户原始文件 | 导出始终另存新文件 |
-
-这些边界用于保证首版的正确性、可测试性和可维护性。
-
-## 技术方案
-
-React、TypeScript、Vite、Vitest、Testing Library、Playwright、SheetJS 和 docx。核心计算与 React、浏览器和文件格式解耦：`src/core` 只含纯 TypeScript 领域逻辑，第三方文件格式与浏览器 API 隔离在 `src/adapters`，便于以后复用到命令行或 WPS 加载项。
+## 架构
 
 ```text
-Excel 文件 → 适配器 → 纯 TypeScript core → React 影响预览
-                         ↓
-                 Excel / Word 导出
+浏览器 (React 19 + Vite)
+   ├── src/core        纯 TypeScript 领域逻辑(无 DOM/React/第三方格式依赖)
+   ├── src/adapters    xlsx / csv / docx / storage / ai / wps
+   ├── src/api         类型化 API 客户端(401 自动刷新、5xx 重试)
+   ├── src/auth        内存会话 + HttpOnly 刷新 Cookie
+   └── src/components  三栏编辑器 + 可选云面板
+        │ 同源 /api/
+        ▼
+Fastify 5 + SQLite(better-sqlite3, WAL)
+   ├── 认证:注册/登录/刷新轮换/登出/RBAC
+   ├── 项目:CRUD + 草稿编辑/应用/撤销 + 乐观锁
+   ├── 报告:服务端权威指标、报告块、图表
+   ├── 实时:SSE(项目变更)
+   └── 运维:健康检查、OpenAPI、审计、限流、安全头
 ```
 
-## 本地开发
+## 快速开始
 
-需要 Node.js 22 与 npm。
+### 纯本地模式(零配置)
 
 ```bash
 npm ci
-npm run example:generate   # 重新生成虚构模板与示例
-npm run dev                # 开发服务器
-npm run typecheck
-npm test                   # Vitest 单元测试
-npm run test:e2e           # Playwright 端到端测试
-npm run build              # tsc + Vite 生产构建
-npm run preview            # 预览 dist/
+npm run dev
 ```
 
-首次运行端到端测试前需执行 `npx playwright install chromium`。发布前依次运行 `npm ci`、生成示例、类型检查、单元测试、端到端测试与构建六道命令。
+打开 `http://localhost:5173`。此模式下不发起任何网络请求,云面板显示配置提示。
 
-## 测试与验收
+### 全栈模式
 
-- 核心：总额、增长率、排名及并列规则，零值边界，确定性报告与影响列表，应用/撤销状态契约。
-- 适配器：Excel 往返与各类非法输入、Word OOXML 内容、版本化本地存储恢复与清除。
-- 端到端：导入→试改→定位→应用→导出，刷新恢复与清除，非法文件保留当前数据，移动端键盘操作，无外发请求。
-- 生产构建预览已完成完整流程冒烟验证，两个导出文件的内容与已确认数据一致。
+```bash
+npm ci
+(cd server && npm ci)
+cp server/.env.example server/.env          # 开发占位值即可
+npm run server:migrate
+npm run dev:full                            # web :5173 + api :3001
+```
 
-验收以[设计文档](docs/superpowers/specs/2026-11-16-what-if-report-design.md)为准。
+要启用前端云功能,创建 `.env.local`:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:3001
+```
+
+### 容器部署
+
+```bash
+cp .env.example .env                        # 设置强随机 JWT_SECRET
+docker compose up -d --build
+```
+
+访问 `http://localhost:8080`。详见 [部署指南](docs/deployment.md)。
+
+## 验证命令
+
+```bash
+npm run typecheck       # 前端类型
+npm test                # 全部 Vitest(前端+后端,224 项)
+npm run test:e2e        # 前端浏览器测试(13 项)
+npm run test:e2e:full   # 全栈浏览器测试(真实后端 + SQLite)
+npm run build           # 前端生产构建
+npm run server:build    # 后端编译
+npm run verify          # 顺序执行全部门禁
+```
+
+## 功能
+
+| 能力 | 说明 |
+|---|---|
+| 导入 | `.xlsx`(Sales 工作表)或 `.csv`(引导式列映射);10 MiB/1000 行上限;公式与非法数值拒绝 |
+| 试改 | 仅「当前」列可编辑;指标、影响列表、报告与图表即时更新 |
+| 来源定位 | 点击影响项高亮来源单元格与报告块 |
+| 配置 | 报告块显示切换与排序;随本地存储与项目文件保存 |
+| 导出 | 已确认版本导出 `.xlsx`/`.docx`;Word 库按需加载 |
+| 本地恢复 | 版本化 localStorage(v1/v2 自动迁移至 v3);二次确认清除 |
+| 云端 | 注册/登录、项目保存/打开、草稿与确认分离、实时变更通知 |
+| 安全 | scrypt 密码哈希、JWT 短令牌、刷新令牌哈希与家族轮换、HttpOnly Cookie、RBAC、限流、安全头 |
+| 运维 | 健康检查、OpenAPI/Swagger、结构化日志与请求 ID、审计日志 |
 
 ## 文档
 
-- [开源 MVP 设计](docs/superpowers/specs/2026-11-16-what-if-report-design.md)
-- [文件级实现计划](docs/superpowers/plans/2026-11-16-what-if-report-mvp.md)
-- [路线图](ROADMAP.md)
-- [贡献指南](CONTRIBUTING.md)
-- [安全与隐私说明](SECURITY.md)
-- [行为准则](CODE_OF_CONDUCT.md)
-- [变更记录](CHANGELOG.md)
-- [WPS 集成验证说明](docs/wps-integration-notes.md)
 - [用户指南](docs/user-guide.md)
 - [开发指南](docs/development.md)
-
-## 贡献
-
-欢迎文档、测试、错误提示、可访问性、翻译和小范围文件格式改进。开始之前请阅读[贡献指南](CONTRIBUTING.md)和[路线图](ROADMAP.md)。
-
-首版不接受“支持所有 Excel 公式”“重写为通用办公平台”等扩大边界的提案。
+- [部署指南](docs/deployment.md)
+- [WPS 集成验证说明](docs/wps-integration-notes.md)
+- [路线图](ROADMAP.md) · [变更记录](CHANGELOG.md) · [安全说明](SECURITY.md) · [贡献指南](CONTRIBUTING.md)
 
 ## License
 

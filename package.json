@@ -18,7 +18,8 @@
     "server:test": "npm --prefix server test",
     "server:migrate": "npm --prefix server run migrate",
     "dev:full": "concurrently -k -n api,web -c blue,green \"npm:server:dev\" \"npm:dev\"",
-    "verify": "npm run typecheck && npm test && npm run test:e2e && npm run build && npm run server:build"
+    "verify": "npm run typecheck && npm test && npm run test:e2e && npm run build && npm run server:build",
+    "test:e2e:full": "playwright test --config=playwright.fullstack.config.ts"
   },
   "dependencies": {
     "docx": "^9.5.1",
