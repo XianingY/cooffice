@@ -35,21 +35,32 @@ import { initialProjectState, projectReducer, type ProjectState } from "./state/
 interface BootResult {
   state: ProjectState;
   warning: string;
+  config: ReportConfig;
 }
 
+const defaultConfig = (): ReportConfig => ({
+  ...DEFAULT_REPORT_CONFIG,
+  blocks: [...DEFAULT_REPORT_CONFIG.blocks],
+});
+
 function bootProject(): BootResult {
-  const fallback = (warning = ""): BootResult => ({ state: initialProjectState(salesDemo), warning });
+  const fallback = (warning = ""): BootResult => ({
+    state: initialProjectState(salesDemo),
+    warning,
+    config: defaultConfig(),
+  });
   try {
-    const snapshot = loadProject();
-    if (snapshot) {
+    const document = loadProject();
+    if (document) {
       return {
         state: {
-          baseline: snapshot.baseline,
-          draft: snapshot.draft,
+          baseline: document.baseline,
+          draft: document.draft,
           selectedImpactId: null,
           sourceCells: [],
         },
         warning: "",
+        config: normaliseReportConfig(document.config),
       };
     }
     return fallback();
@@ -69,10 +80,7 @@ export default function App() {
     input: TabularInput;
     suggested: ColumnMapping;
   } | null>(null);
-  const [reportConfig, setReportConfig] = useState<ReportConfig>(() => ({
-    ...DEFAULT_REPORT_CONFIG,
-    blocks: [...DEFAULT_REPORT_CONFIG.blocks],
-  }));
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(boot.config);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiPolishedText, setAiPolishedText] = useState("");
   const skipNextSave = useRef(false);
@@ -85,17 +93,14 @@ export default function App() {
       return;
     }
     try {
-      saveProject({
-        schemaVersion: 1,
-        baseline: state.baseline,
-        draft: state.draft,
-        updatedAt: new Date().toISOString(),
-      });
+      saveProject(
+        createProjectFile(state.baseline, state.draft, new Date().toISOString(), reportConfig),
+      );
       setStorageWarning("");
     } catch {
       setStorageWarning("本地草稿保存失败，当前页面内仍可继续编辑和导出");
     }
-  }, [state.baseline, state.draft]);
+  }, [state.baseline, state.draft, reportConfig]);
 
   const baselineMetrics = useMemo(() => computeMetrics(state.baseline), [state.baseline]);
   const draftMetrics = useMemo(() => computeMetrics(state.draft), [state.draft]);
@@ -187,10 +192,7 @@ export default function App() {
       setStorageWarning("本地草稿清除失败，当前页面内仍可继续编辑和导出");
     }
     dispatch({ type: "clear" });
-    setReportConfig({
-      ...DEFAULT_REPORT_CONFIG,
-      blocks: [...DEFAULT_REPORT_CONFIG.blocks],
-    });
+    setReportConfig(defaultConfig());
     setClearDialogOpen(false);
     setImportError("");
     setExportError("");

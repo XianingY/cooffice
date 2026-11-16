@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import App from "../../src/App";
 import { STORAGE_KEY, saveProject } from "../../src/adapters/storage/projectStorage";
+import { createProjectFile } from "../../src/core/projectFile";
 import { salesDemo } from "../../src/fixtures/salesDemo";
 
 const eastInput = () => screen.getByLabelText("华东当前销售额");
@@ -82,7 +83,9 @@ describe("impact preview", () => {
   it("restores a persisted draft on load", () => {
     const draft = structuredClone(salesDemo);
     draft.regions[0].current = 90;
-    saveProject({ schemaVersion: 1, baseline: salesDemo, draft, updatedAt: new Date().toISOString() });
+    saveProject(
+      createProjectFile(salesDemo, draft, new Date().toISOString())
+    );
     render(<App />);
     expect(eastInput()).toHaveValue(90);
     expect(screen.getByText("300 万元 → 270 万元")).toBeInTheDocument();
