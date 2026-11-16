@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { createLogger } from "../logging/logger.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -15,11 +16,13 @@ export function requestIdHook(request: FastifyRequest, _reply: FastifyReply, don
   done();
 }
 
-/** Log request completion with duration; secrets are redacted by the logger. */
-export function registerRequestLogging(app: FastifyInstance): void {
+/** Log request completion once with duration and correlation ID. */
+export function registerRequestLogging(app: FastifyInstance, level: string, pretty: boolean): void {
+  const logger = createLogger(level, pretty);
+  app.log = logger as typeof app.log;
   app.addHook("onRequest", requestIdHook);
   app.addHook("onResponse", (request, reply, done) => {
-    request.log.info(
+    logger.info(
       {
         requestId: request.requestId,
         method: request.method,

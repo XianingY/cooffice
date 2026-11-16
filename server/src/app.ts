@@ -35,18 +35,11 @@ export interface BuildAppOptions {
 /** Assemble plugins, infrastructure and feature routes into one app instance. */
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const { env } = options;
-  // Fastify v5 accepts a pino options object (not an external instance).
-  // This gives every request a child logger carrying the correlation fields.
-  const app = Fastify({
-    logger: {
-      level: env.LOG_LEVEL === "silent" ? "silent" : env.LOG_LEVEL,
-      redact: ["req.headers.authorization", "req.headers.cookie", "password", "token", "refreshToken"],
-    },
-    bodyLimit: 1_048_576,
-    trustProxy: false,
-  });
+  // Our request-context hook already logs method/status/duration with a
+  // correlation ID; disable Fastify's duplicate access log to avoid noise.
+  const app = Fastify({ logger: false, bodyLimit: 1_048_576, trustProxy: false });
 
-  registerRequestLogging(app);
+  registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production");
   registerErrorHandler(app);
 
   await app.register(helmet, { contentSecurityPolicy: false });
