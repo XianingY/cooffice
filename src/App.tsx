@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { createWordReport } from "./adapters/docx/createWordReport";
 import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
+import {
+  CONFIRMED_DOCX_FILENAME,
+  downloadBlob,
+  downloadSalesWorkbook,
+} from "./adapters/xlsx/downloadWorkbook";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
@@ -85,6 +91,30 @@ export default function App() {
     [state.baseline, state.draft],
   );
 
+  const handleExportExcel = () => {
+    try {
+      downloadSalesWorkbook(state.baseline);
+      setExportError("");
+    } catch {
+      setExportError("Excel 导出失败，请重试；当前项目未改变");
+    }
+  };
+
+  const handleExportWord = async () => {
+    try {
+      const blob = await createWordReport(state.baseline, baselineReport);
+      downloadBlob(blob, CONFIRMED_DOCX_FILENAME);
+      setExportError("");
+    } catch {
+      setExportError("Word 导出失败，请重试；当前项目未改变");
+    }
+  };
+
+  const notices = [
+    storageWarning,
+    hasUnappliedDraft ? "导出已确认版本，不包含未应用草稿" : "",
+  ].filter((text): text is string => text !== "");
+
   const handleClear = () => {
     skipNextSave.current = true;
     try {
@@ -117,8 +147,10 @@ export default function App() {
         onApply={() => dispatch({ type: "apply" })}
         onRevert={() => dispatch({ type: "revert" })}
         onClear={() => setClearDialogOpen(true)}
+        onExportExcel={handleExportExcel}
+        onExportWord={handleExportWord}
       />
-      <StatusMessage error={importError} exportError={exportError} notice={storageWarning} />
+      <StatusMessage error={importError} exportError={exportError} notices={notices} />
       <ConfirmClearDialog
         open={clearDialogOpen}
         onCancel={() => setClearDialogOpen(false)}

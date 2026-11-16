@@ -1,11 +1,11 @@
 interface StatusMessageProps {
   error?: string;
   exportError?: string;
-  notice?: string;
+  notices?: string[];
 }
 
 /** Import/export failures use role=alert; non-blocking notices use role=status. */
-export function StatusMessage({ error, exportError, notice }: StatusMessageProps) {
+export function StatusMessage({ error, exportError, notices = [] }: StatusMessageProps) {
   return (
     <div className="status-messages" aria-live="polite">
       {error ? (
@@ -18,11 +18,11 @@ export function StatusMessage({ error, exportError, notice }: StatusMessageProps
           {exportError}
         </p>
       ) : null}
-      {notice ? (
-        <p role="status" className="status-notice">
-          {notice}
+      {notices.map((text) => (
+        <p key={text} role="status" className="status-notice">
+          {text}
         </p>
-      ) : null}
+      ))}
     </div>
   );
 }
