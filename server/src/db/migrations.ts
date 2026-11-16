@@ -76,6 +76,19 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_logs(actor_id, created_at DESC);
     `,
   },
+  {
+    id: 5,
+    name: "optimize_list_queries",
+    up: `
+      -- Covering index for owner-scoped listing with sorting and pagination.
+      CREATE INDEX IF NOT EXISTS idx_projects_owner_updated_cover
+        ON projects(owner_id, updated_at DESC, id, name, version);
+      -- Audit lookups by entity and entity id.
+      CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity, entity_id, id DESC);
+      -- Refresh cleanup scans expired tokens by timestamp.
+      CREATE INDEX IF NOT EXISTS idx_refresh_expires ON refresh_tokens(expires_at);
+    `,
+  },
 ];
 
 /** Apply pending migrations inside a single transaction; record applied ids. */
