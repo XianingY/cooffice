@@ -5,7 +5,8 @@ import { sendError } from "../errors/errorResponse.js";
 /** Central error handler: one place maps all thrown errors to client responses. */
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
-    const isExpected = error instanceof AppError || (typeof error.statusCode === "number" && error.statusCode < 500);
+    const statusCode = error instanceof Error && "statusCode" in error ? (error as { statusCode?: unknown }).statusCode : undefined;
+    const isExpected = error instanceof AppError || (typeof statusCode === "number" && statusCode < 500);
     if (isExpected) {
       request.log.warn({ err: error, requestId: request.requestId }, "request rejected");
     } else {
