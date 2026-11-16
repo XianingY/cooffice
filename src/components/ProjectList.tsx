@@ -13,11 +13,12 @@ export function ProjectList({ api, onOpen, refreshKey = 0 }: ProjectListProps) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    api.projects.list({ limit: 50 })
+    api.projects.list({ limit: 50, search: search.trim() || undefined })
       .then((response) => { if (active) { setProjects(response.items); setError(""); } })
       .catch((cause) => {
         if (!active) return;
@@ -25,11 +26,21 @@ export function ProjectList({ api, onOpen, refreshKey = 0 }: ProjectListProps) {
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [api, refreshKey]);
+  }, [api, refreshKey, search]);
 
   return (
     <section className="panel" aria-labelledby="projects-title">
       <h2 id="projects-title">云端项目</h2>
+      <label>
+        搜索项目
+        <input
+          aria-label="搜索项目"
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="按名称过滤"
+        />
+      </label>
       {loading ? <p role="status">正在加载项目…</p> : null}
       {error ? <p role="alert" className="status-error">{error}</p> : null}
       {!loading && !error && projects.length === 0 ? <p className="hint">还没有云端项目。保存后可在这里打开。</p> : null}

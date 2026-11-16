@@ -71,7 +71,7 @@ export function createApi(client: ApiClient) {
         }),
     },
     projects: {
-      list: (query: { limit?: number; offset?: number; sort?: string; order?: string } = {}) => {
+      list: (query: { limit?: number; offset?: number; sort?: string; order?: string; search?: string } = {}) => {
         const params = new URLSearchParams();
         Object.entries(query).forEach(([key, value]) => { if (value !== undefined) params.set(key, String(value)); });
         const suffix = params.toString() ? `?${params}` : "";
