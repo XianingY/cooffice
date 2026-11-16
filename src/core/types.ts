@@ -1,4 +1,4 @@
-/** Shared, framework-agnostic domain contracts for the v0.1.0 MVP. */
+/** Shared, framework-agnostic domain contracts for the What-if Report core. */
 
 export interface SalesRegion {
   id: string;
@@ -57,4 +57,18 @@ export interface ProjectSnapshot {
   baseline: SalesData;
   draft: SalesData;
   updatedAt: string;
+}
+
+/** A source-agnostic table produced by the CSV adapter (v0.2.0). */
+export interface TabularInput {
+  headers: string[];
+  rows: string[][];
+  source: "csv";
+}
+
+/** User-confirmed mapping from table columns to the three required fields. */
+export interface ColumnMapping {
+  region: number;
+  previous: number;
+  current: number;
 }
