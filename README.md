@@ -70,7 +70,10 @@ npm run test:e2e        # 前端浏览器测试(13 项)
 npm run test:e2e:full   # 全栈浏览器测试(真实后端 + SQLite)
 npm run build           # 前端生产构建
 npm run server:build    # 后端编译
+npm run smoke           # 构建并启动后端做端点冒烟
 npm run verify          # 顺序执行全部门禁
+
+验收基线与覆盖范围见 [验证记录](docs/verification.md)。
 ```
 
 ## 功能
@@ -92,6 +95,7 @@ npm run verify          # 顺序执行全部门禁
 - [用户指南](docs/user-guide.md)
 - [开发指南](docs/development.md)
 - [部署指南](docs/deployment.md)
+- [验证记录](docs/verification.md)
 - [WPS 集成验证说明](docs/wps-integration-notes.md)
 - [路线图](ROADMAP.md) · [变更记录](CHANGELOG.md) · [安全说明](SECURITY.md) · [贡献指南](CONTRIBUTING.md)
 
