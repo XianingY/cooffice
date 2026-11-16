@@ -11,6 +11,7 @@ import { migrate } from "./db/migrations.js";
 import { UserRepository } from "./modules/auth/userRepository.js";
 import { RefreshTokenRepository } from "./modules/auth/refreshTokenRepository.js";
 import { AuditRepository } from "./modules/audit/auditRepository.js";
+import { registerAuditRoutes } from "./modules/audit/auditRoutes.js";
 import { createTokenService } from "./modules/auth/tokens.js";
 import { AuthService } from "./modules/auth/authService.js";
 import { registerAuthRoutes } from "./modules/auth/authRoutes.js";
@@ -89,6 +90,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerReportRoutes, { service: reportService, tokens });
   await app.register(registerSseRoutes, { bus: eventBus, tokens });
+  await app.register(registerAuditRoutes, { repo: audit, tokens });
 
   return app;
 }
