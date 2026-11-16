@@ -5,6 +5,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useCloudProject } from "../hooks/useCloudProject";
 import type { ReportConfig, SalesData } from "../core/types";
 import { AuthForms } from "./AuthForms";
+import { ProfilePanel } from "./ProfilePanel";
 import { ProjectList } from "./ProjectList";
 
 interface CloudPanelProps {
@@ -55,6 +56,7 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
             </button>
           </div>
           {cloud.error || error ? <p role="alert" className="status-error">{cloud.error || error}</p> : null}
+          <ProfilePanel api={api} />
           <ProjectList api={api} onOpen={(id) => void handleOpen(id)} refreshKey={refreshKey} />
           <button type="button" onClick={() => void signOut()}>退出登录</button>
         </>

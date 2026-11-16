@@ -62,6 +62,13 @@ export function createApi(client: ApiClient) {
       refresh: () => client.request<TokenResponse>("/api/auth/refresh", { method: "POST" }),
       logout: () => client.request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
       me: () => client.request<PublicUser>("/api/auth/me"),
+      updateProfile: (displayName: string) =>
+        client.request<PublicUser>("/api/me", { method: "PATCH", body: JSON.stringify({ displayName }) }),
+      changePassword: (currentPassword: string, newPassword: string) =>
+        client.request<{ ok: boolean }>("/api/me/password", {
+          method: "POST",
+          body: JSON.stringify({ currentPassword, newPassword }),
+        }),
     },
     projects: {
       list: (query: { limit?: number; offset?: number; sort?: string; order?: string } = {}) => {
