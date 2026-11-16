@@ -72,3 +72,12 @@ export interface ColumnMapping {
   previous: number;
   current: number;
 }
+
+/** Portable project document introduced in v0.2.0 (migrates v1 snapshots). */
+export interface ProjectFileSnapshot {
+  schemaVersion: 2;
+  format: "what-if-report-project";
+  baseline: SalesData;
+  draft: SalesData;
+  updatedAt: string;
+}
