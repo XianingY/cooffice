@@ -10,14 +10,14 @@
 
 ## 本地环境
 
-首版使用 Node.js 22 和 npm。代码发布后，使用：
+首版使用 Node.js 22 和 npm。克隆仓库后使用：
 
 ```bash
 npm ci
 npm run dev
 ```
 
-提交前必须通过：
+首次运行端到端测试前需执行 `npx playwright install chromium`。修改示例数据或模板时，需运行 `npm run example:generate` 重新生成 `public/templates` 下的虚构文件。提交前必须通过：
 
 ```bash
 npm run typecheck
