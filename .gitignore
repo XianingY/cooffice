@@ -1,8 +1,65 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+build/
+out/
+.vite/
+
+# Test and coverage artifacts
+coverage/
 playwright-report/
+blob-report/
 test-results/
+*.lcov
+
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+id_rsa
+id_rsa.*
+credentials.json
+service-account*.json
+
+# Local tooling, editor state and OS files
+.workbuddy/
+.vscode/
+.idea/
+*.swp
+*.swo
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+*~
+*.bak
+*.orig
+*.rej
+
+# User-supplied spreadsheet data. Never commit real business files.
+# Only the fictional example/template and synthetic test fixtures are allowed.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+!public/templates/sales-demo.xlsx
+!public/templates/sales-template.xlsx
+!tests/fixtures/
+!tests/fixtures/**
+!e2e/fixtures/
+!e2e/fixtures/**
