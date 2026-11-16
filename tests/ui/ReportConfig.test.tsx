@@ -31,4 +31,15 @@ describe("report configuration UI", () => {
     const preview = screen.getByRole("region", { name: "草稿报告" });
     expect(preview.textContent).not.toContain("同比增长率为");
   });
+
+  it("restores the default config when the local project is cleared", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("checkbox", { name: "显示同比增长率" }));
+    expect(screen.getByRole("region", { name: "草稿报告" }).textContent).not.toContain("同比增长率为");
+
+    await user.click(screen.getByRole("button", { name: "清除本地项目" }));
+    await user.click(screen.getByRole("button", { name: "确认清除" }));
+    expect(screen.getByRole("region", { name: "草稿报告" }).textContent).toContain("同比增长率为");
+  });
 });

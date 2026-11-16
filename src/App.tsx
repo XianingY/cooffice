@@ -184,6 +184,10 @@ export default function App() {
       setStorageWarning("本地草稿清除失败，当前页面内仍可继续编辑和导出");
     }
     dispatch({ type: "clear" });
+    setReportConfig({
+      ...DEFAULT_REPORT_CONFIG,
+      blocks: [...DEFAULT_REPORT_CONFIG.blocks],
+    });
     setClearDialogOpen(false);
     setImportError("");
     setExportError("");
