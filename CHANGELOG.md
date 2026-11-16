@@ -2,6 +2,23 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.0.0] - 2026-11-16
+
+### Added
+
+- 统一的数据格式:schemaVersion 3 同时用于 localStorage 与项目文件,v1/v2 读取时自动迁移。
+- 报告配置随本地存储持久化,刷新后保留。
+- 用户指南、开发指南与可访问性端到端检查。
+- 可复现发布流程:CI 全门禁与版本标签触发的 GitHub Pages 部署工作流。
+
+### Changed
+
+- `package.json` 版本升至 1.0.0。
+
+### Notes
+
+- Pages 的实际部署需在授权后推送版本标签触发;本版本不声称已完成线上部署。
+
 ## [0.5.0] - 2026-11-16
 
 ### Added

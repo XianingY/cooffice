@@ -2,7 +2,7 @@
 
 一个本地优先的表格修改影响预览工具：导入固定格式的 Excel，在浏览器中试改数据，查看指标和报告结论会受到什么影响，确认后导出新的 Excel 和 Word。
 
-> **项目状态：v0.5.0 可行性验证完成(未在真实 WPS 客户端验证)。** 代码、单元测试、端到端测试与生产构建均可用下方命令复现。代码已推送到 GitHub;GitHub Pages 发布与静态演示链接尚未启用。
+> **项目状态：v1.0.0 稳定版本。** 本地优先、完整可用;单元测试、端到端测试、CI 与可复现发布流程齐备。代码已推送到 GitHub;GitHub Pages 的实际部署需在获得授权后推送版本标签触发。
 
 ![三栏影响预览：编辑华东当前值后，指标、排名与报告结论同步变化并高亮来源](docs/screenshot.png)
 
@@ -104,6 +104,8 @@ npm run preview            # 预览 dist/
 - [行为准则](CODE_OF_CONDUCT.md)
 - [变更记录](CHANGELOG.md)
 - [WPS 集成验证说明](docs/wps-integration-notes.md)
+- [用户指南](docs/user-guide.md)
+- [开发指南](docs/development.md)
 
 ## 贡献
 
