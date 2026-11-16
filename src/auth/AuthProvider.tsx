@@ -51,7 +51,10 @@ export function AuthProvider({ api, children, enabled = true }: { api: Api; chil
     try {
       applyTokens(await api.auth.login({ email, password }));
     } catch (error) {
-      const message = error instanceof ApiError ? error.displayMessage : "登录失败，请稍后重试";
+      // Login failures are credential problems, not expired sessions.
+      const message = error instanceof ApiError && error.status === 401
+        ? "邮箱或密码不正确"
+        : error instanceof ApiError ? error.displayMessage : "登录失败，请稍后重试";
       setState((previous) => ({ ...previous, error: message }));
       throw error;
     }
