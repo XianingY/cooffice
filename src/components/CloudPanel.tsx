@@ -22,10 +22,27 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
   const cloud = useCloudProject(api);
   const [name, setName] = useState("未命名项目");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exportError, setExportError] = useState("");
 
   const handleSave = async () => {
     await cloud.save(name, baseline, draft, config);
     setRefreshKey((key) => key + 1);
+  };
+
+  const handleExportFile = async () => {
+    if (!cloud.projectId) return;
+    try {
+      const projectDocument = await api.projects.exportFile(cloud.projectId);
+      const blob = new Blob([JSON.stringify(projectDocument, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "what-if-report-project.json";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "导出项目文件失败");
+    }
   };
 
   const handleOpen = async (id: string) => {
@@ -55,7 +72,12 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
               {cloud.saving ? "保存中…" : cloud.projectId ? "更新云端项目" : "保存到云端"}
             </button>
           </div>
-          {cloud.error || error ? <p role="alert" className="status-error">{cloud.error || error}</p> : null}
+          {cloud.projectId ? (
+            <button type="button" onClick={() => void handleExportFile()}>导出云项目文件</button>
+          ) : null}
+          {cloud.error || error || exportError ? (
+            <p role="alert" className="status-error">{cloud.error || error || exportError}</p>
+          ) : null}
           <ProfilePanel api={api} />
           <ProjectList api={api} onOpen={(id) => void handleOpen(id)} refreshKey={refreshKey} />
           <button type="button" onClick={() => void signOut()}>退出登录</button>

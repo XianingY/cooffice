@@ -87,6 +87,11 @@ export function createApi(client: ApiClient) {
         client.request<Project>(`/api/projects/${encodeURIComponent(id)}/draft`, { method: "PUT", body: JSON.stringify({ draft }) }),
       apply: (id: string) => client.request<Project>(`/api/projects/${encodeURIComponent(id)}/apply`, { method: "POST" }),
       revert: (id: string) => client.request<Project>(`/api/projects/${encodeURIComponent(id)}/revert`, { method: "POST" }),
+      exportFile: (id: string) => client.request<Record<string, unknown>>(`/api/projects/${encodeURIComponent(id)}/file`),
+      importFile: (document: unknown) => client.request<{ id: string; name: string }>("/api/projects/import", {
+        method: "POST",
+        body: JSON.stringify({ document }),
+      }),
     },
     reports: {
       generate: (id: string, useDraft = false) =>
