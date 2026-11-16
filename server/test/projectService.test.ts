@@ -54,6 +54,19 @@ describe("ProjectService", () => {
     } finally { db.close(); }
   });
 
+  it("filters projects by name with a parameterized search", () => {
+    const { db, service, ownerId } = setup();
+    try {
+      service.create(ownerId, { name: "Quarterly Report", baseline: data }, "r1");
+      service.create(ownerId, { name: "Personal Notes", baseline: data }, "r2");
+      const result = service.list(ownerId, { search: "quarter" });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe("Quarterly Report");
+      expect(result.total).toBe(1);
+      expect(service.list(ownerId, { search: "no-match" }).items).toEqual([]);
+    } finally { db.close(); }
+  });
+
   it("rejects stale version updates", () => {
     const { db, service, ownerId } = setup();
     try {

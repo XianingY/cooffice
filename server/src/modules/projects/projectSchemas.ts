@@ -37,6 +37,7 @@ export const listProjectsQuerySchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
   sort: z.enum(["updatedAt", "name"]).optional(),
   order: z.enum(["asc", "desc"]).optional(),
+  search: z.string().trim().max(120).optional(),
 }).strict();
 
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;

@@ -28,8 +28,14 @@ export class ProjectService {
       offset: query.offset ?? 0,
       sort: query.sort ?? "updatedAt",
       order: query.order ?? "desc",
+      search: query.search,
     };
-    return { items: this.repo.listByOwner(ownerId, options), total: this.repo.countByOwner(ownerId), ...options };
+    return {
+      items: this.repo.listByOwner(ownerId, options),
+      total: this.repo.countByOwner(ownerId, query.search),
+      limit: options.limit,
+      offset: options.offset,
+    };
   }
 
   get(ownerId: string, id: string) {

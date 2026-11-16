@@ -31,6 +31,7 @@ export interface ProjectListOptions {
   offset?: number;
   sort?: "updatedAt" | "name";
   order?: "asc" | "desc";
+  search?: string;
 }
 
 export class ProjectRepository {
@@ -46,15 +47,21 @@ export class ProjectRepository {
     const offset = Math.max(options.offset ?? 0, 0);
     const column = options.sort === "name" ? "name" : "updated_at";
     const direction = options.order === "asc" ? "ASC" : "DESC";
+    const search = options.search?.trim();
+    const where = search ? "owner_id = ? AND name LIKE ?" : "owner_id = ?";
+    const params = search ? [ownerId, `%${search}%`, limit, offset] : [ownerId, limit, offset];
     const rows = this.db
-      .prepare(`SELECT * FROM projects WHERE owner_id = ? ORDER BY ${column} ${direction} LIMIT ? OFFSET ?`)
-      .all(ownerId, limit, offset) as ProjectRow[];
+      .prepare(`SELECT * FROM projects WHERE ${where} ORDER BY ${column} ${direction} LIMIT ? OFFSET ?`)
+      .all(...params) as ProjectRow[];
     return rows.map(mapRow);
   }
 
-  countByOwner(ownerId: string): number {
-    const row = this.db.prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ?").get(ownerId) as { n: number };
-    return row.n;
+  countByOwner(ownerId: string, search?: string): number {
+    const term = search?.trim();
+    const row = term
+      ? this.db.prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ? AND name LIKE ?").get(ownerId, `%${term}%`)
+      : this.db.prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ?").get(ownerId);
+    return (row as { n: number }).n;
   }
 
   create(input: Omit<ProjectRecord, "id" | "version" | "createdAt" | "updatedAt">): ProjectRecord {
