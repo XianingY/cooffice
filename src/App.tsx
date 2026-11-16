@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { createWordReport } from "./adapters/docx/createWordReport";
 import {
   downloadProjectFile,
   readProjectFile,
@@ -134,6 +133,8 @@ export default function App() {
 
   const handleExportWord = async () => {
     try {
+      // Load the DOCX library only when the user actually exports Word.
+      const { createWordReport } = await import("./adapters/docx/createWordReport");
       const blob = await createWordReport(state.baseline, baselineReport);
       downloadBlob(blob, CONFIRMED_DOCX_FILENAME);
       setExportError("");

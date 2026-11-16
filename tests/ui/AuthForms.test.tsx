@@ -40,7 +40,7 @@ describe("AuthForms", () => {
     await userEventInstance.type(screen.getByLabelText("邮箱"), "a@b.test");
     await userEventInstance.type(screen.getByLabelText("密码"), "password123");
     await userEventInstance.click(screen.getByRole("button", { name: "登录" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("登录已过期");
+    expect(await screen.findByRole("alert")).toHaveTextContent("邮箱或密码不正确");
   });
 
   it("switches to registration mode", async () => {
