@@ -88,6 +88,7 @@ body {
   background: var(--panel);
   color: var(--text);
   padding: 8px 14px;
+  min-height: 44px;
   border-radius: 6px;
   font: inherit;
   cursor: pointer;
@@ -136,6 +137,10 @@ body {
   background: #fdecea;
   color: var(--danger);
   border: 1px solid #f3c2bd;
+}
+
+.status-prefix {
+  font-weight: 600;
 }
 
 .status-notice {
@@ -220,6 +225,7 @@ body {
 
 .impact-item {
   width: 100%;
+  min-height: 44px;
   text-align: left;
   display: flex;
   flex-direction: column;
