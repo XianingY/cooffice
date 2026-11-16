@@ -19,7 +19,8 @@
     "server:migrate": "npm --prefix server run migrate",
     "dev:full": "concurrently -k -n api,web -c blue,green \"npm:server:dev\" \"npm:dev\"",
     "verify": "npm run typecheck && npm test && npm run test:e2e && npm run build && npm run server:test && npm run server:build",
-    "test:e2e:full": "playwright test --config=playwright.fullstack.config.ts"
+    "test:e2e:full": "playwright test --config=playwright.fullstack.config.ts",
+    "smoke": "npm run server:build && cd server && bash scripts/smoke.sh"
   },
   "dependencies": {
     "docx": "^9.5.1",
