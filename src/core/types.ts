@@ -92,11 +92,12 @@ export interface ChartModel {
   data: ChartDatum[];
 }
 
-/** Portable project document introduced in v0.2.0 (migrates v1 snapshots). */
+/** Portable project document. v3 adds the report config (v0.3.0). */
 export interface ProjectFileSnapshot {
-  schemaVersion: 2;
+  schemaVersion: 3;
   format: "what-if-report-project";
   baseline: SalesData;
   draft: SalesData;
   updatedAt: string;
+  config: ReportConfig;
 }

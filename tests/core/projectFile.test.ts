@@ -24,6 +24,14 @@ describe("createProjectFile", () => {
     expect(file.draft).toEqual(salesDemo);
     expect(file.updatedAt).toBe("2026-11-16T00:00:00.000Z");
     expect(file.baseline).not.toBe(salesDemo);
+    expect(file.config.blocks).toEqual(["summary", "growthNarrative", "leaderNarrative"]);
+  });
+
+  it("stores a custom report config defensively", () => {
+    const file = createProjectFile(salesDemo, salesDemo, "2026-11-16T00:00:00.000Z", {
+      blocks: ["leaderNarrative", "summary"],
+    });
+    expect(file.config.blocks).toEqual(["leaderNarrative", "summary"]);
   });
 });
 
@@ -36,9 +44,24 @@ describe("parseProjectFile", () => {
     expect(migrated.baseline).toEqual(salesDemo);
   });
 
-  it("round-trips a current project file", () => {
-    const file = createProjectFile(salesDemo, salesDemo, "2026-11-16T00:00:00.000Z");
+  it("round-trips a current project file including config", () => {
+    const file = createProjectFile(salesDemo, salesDemo, "2026-11-16T00:00:00.000Z", {
+      blocks: ["growthNarrative", "summary"],
+    });
     expect(parseProjectFile(JSON.parse(JSON.stringify(file)))).toEqual(file);
+  });
+
+  it("migrates a v2 project file to v3 with default config", () => {
+    const v2 = {
+      schemaVersion: 2,
+      format: "what-if-report-project",
+      baseline: salesDemo,
+      draft: salesDemo,
+      updatedAt: "2026-11-16T00:00:00.000Z",
+    };
+    const migrated = parseProjectFile(v2);
+    expect(migrated.schemaVersion).toBe(PROJECT_FILE_VERSION);
+    expect(migrated.config.blocks).toEqual(["summary", "growthNarrative", "leaderNarrative"]);
   });
 
   it("preserves draft edits separately from baseline", () => {
