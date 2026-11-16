@@ -73,6 +73,25 @@ export interface ColumnMapping {
   current: number;
 }
 
+/** Configurable report block order (v0.3.0). */
+export interface ReportConfig {
+  blocks: ReportBlockId[];
+}
+
+/** A single bar in the deterministic region chart (v0.3.0). */
+export interface ChartDatum {
+  regionId: string;
+  name: string;
+  value: number;
+}
+
+/** Deterministic chart model derived from confirmed or draft data. */
+export interface ChartModel {
+  title: string;
+  unit: string;
+  data: ChartDatum[];
+}
+
 /** Portable project document introduced in v0.2.0 (migrates v1 snapshots). */
 export interface ProjectFileSnapshot {
   schemaVersion: 2;
