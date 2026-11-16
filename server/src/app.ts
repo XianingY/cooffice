@@ -14,6 +14,9 @@ import { AuditRepository } from "./modules/audit/auditRepository.js";
 import { createTokenService } from "./modules/auth/tokens.js";
 import { AuthService } from "./modules/auth/authService.js";
 import { registerAuthRoutes } from "./modules/auth/authRoutes.js";
+import { registerProjectRoutes } from "./modules/projects/projectRoutes.js";
+import { ProjectRepository } from "./modules/projects/projectRepository.js";
+import { ProjectService } from "./modules/projects/projectService.js";
 import { registerHealthRoutes } from "./health/routes.js";
 
 export interface BuildAppOptions {
@@ -67,8 +70,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     refreshTtlMs: parseTtlMs(env.JWT_REFRESH_TTL),
   });
 
+  const projectRepo = new ProjectRepository(db);
+  const projectService = new ProjectService(projectRepo, audit);
+
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
+  await app.register(registerProjectRoutes, { service: projectService, tokens });
 
   return app;
 }

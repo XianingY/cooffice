@@ -30,6 +30,8 @@ export const updateProjectSchema = z.object({
   expectedVersion: z.number().int().positive().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, "At least one field must be provided");
 
+export const draftBodySchema = z.object({ draft: salesDataSchema }).strict();
+
 export const listProjectsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
