@@ -14,16 +14,20 @@ import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
+import { RegionChart } from "./components/RegionChart";
+import { ReportConfigPanel } from "./components/ReportConfigPanel";
 import { ReportPreview } from "./components/ReportPreview";
 import { SalesTable } from "./components/SalesTable";
 import { StatusMessage } from "./components/StatusMessage";
 import { Toolbar } from "./components/Toolbar";
 import { applyColumnMapping } from "./core/columnMapping";
+import { buildChart } from "./core/chart";
 import { compareSnapshots } from "./core/impacts";
 import { computeMetrics } from "./core/metrics";
 import { createProjectFile } from "./core/projectFile";
 import { buildReport } from "./core/report";
-import type { ColumnMapping, SalesData, TabularInput } from "./core/types";
+import { DEFAULT_REPORT_CONFIG, normaliseReportConfig } from "./core/reportConfig";
+import type { ColumnMapping, ReportConfig, SalesData, TabularInput } from "./core/types";
 import { salesDemo } from "./fixtures/salesDemo";
 import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
 
@@ -64,6 +68,10 @@ export default function App() {
     input: TabularInput;
     suggested: ColumnMapping;
   } | null>(null);
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(() => ({
+    ...DEFAULT_REPORT_CONFIG,
+    blocks: [...DEFAULT_REPORT_CONFIG.blocks],
+  }));
   const skipNextSave = useRef(false);
 
   // Persist only confirmed/draft data. After "clear" the snapshot stays
@@ -89,10 +97,14 @@ export default function App() {
   const baselineMetrics = useMemo(() => computeMetrics(state.baseline), [state.baseline]);
   const draftMetrics = useMemo(() => computeMetrics(state.draft), [state.draft]);
   const baselineReport = useMemo(
-    () => buildReport(state.baseline, baselineMetrics),
-    [state.baseline, baselineMetrics],
+    () => buildReport(state.baseline, baselineMetrics, reportConfig),
+    [state.baseline, baselineMetrics, reportConfig],
   );
-  const draftReport = useMemo(() => buildReport(state.draft, draftMetrics), [state.draft, draftMetrics]);
+  const draftReport = useMemo(
+    () => buildReport(state.draft, draftMetrics, reportConfig),
+    [state.draft, draftMetrics, reportConfig],
+  );
+  const draftChart = useMemo(() => buildChart(state.draft), [state.draft]);
   const impacts = useMemo(
     () => compareSnapshots(state.baseline, state.draft),
     [state.baseline, state.draft],
@@ -136,7 +148,7 @@ export default function App() {
   const handleExportProject = () => {
     try {
       downloadProjectFile(
-        createProjectFile(state.baseline, state.draft, new Date().toISOString()),
+        createProjectFile(state.baseline, state.draft, new Date().toISOString(), reportConfig),
       );
       setExportError("");
     } catch {
@@ -153,6 +165,7 @@ export default function App() {
         baseline: document.baseline,
         draft: document.draft,
       });
+      setReportConfig(normaliseReportConfig(document.config));
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "项目文件导入失败");
     }
@@ -237,6 +250,11 @@ export default function App() {
           draftReport={draftReport}
           sourceCells={state.sourceCells}
         />
+      </div>
+
+      <div className="extras">
+        <RegionChart chart={draftChart} />
+        <ReportConfigPanel config={reportConfig} onChange={setReportConfig} />
       </div>
 
       <footer className="app-footer">

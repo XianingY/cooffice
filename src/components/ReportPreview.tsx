@@ -22,7 +22,7 @@ export function ReportPreview({ baselineReport, draftReport, sourceCells }: Repo
             </p>
           ))}
         </article>
-        <article aria-label="草稿报告">
+        <article role="region" aria-label="草稿报告">
           <h3>草稿报告</h3>
           {draftReport.blocks.map((block) => (
             <p key={block.id} className={highlight(block.sourceCells)}>

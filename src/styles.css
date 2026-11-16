@@ -377,8 +377,92 @@ body {
   outline-offset: 2px;
 }
 
+.extras {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 96px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-track {
+  background: #e9eef5;
+  border-radius: 4px;
+  height: 14px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.chart-value {
+  text-align: right;
+  color: var(--muted);
+}
+
+.config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.config-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.config-order {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.config-order button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.config-order button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 @media (max-width: 960px) {
-  .workspace {
+  .workspace,
+  .extras {
     grid-template-columns: 1fr;
   }
 
