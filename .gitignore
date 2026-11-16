@@ -51,6 +51,14 @@ pnpm-debug.log*
 *.orig
 *.rej
 
+# Backend runtime data (SQLite databases and journal files)
+server/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
 # User-supplied spreadsheet data. Never commit real business files.
 # Only the fictional example/template and synthetic test fixtures are allowed.
 *.xlsx
