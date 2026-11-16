@@ -1,0 +1,63 @@
+# 部署指南
+
+本项目提供两种运行方式:本地开发(前后端分离热重载)与容器化部署(nginx + API)。
+
+## 本地开发
+
+```bash
+npm ci
+(cd server && npm ci)
+cp server/.env.example server/.env   # 开发占位值即可
+npm run server:migrate               # 初始化 SQLite 数据库
+npm run dev:full                     # web :5173 + api :3001
+```
+
+纯前端本地模式不配置 `VITE_API_BASE_URL` 时不发起任何网络请求,云同步面板会显示提示。
+
+启用云功能时,在 `server/.env` 设置 JWT_SECRET,并创建前端 `.env.local`:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:3001
+```
+
+## 容器化部署
+
+1. 复制 `.env.example` 为 `.env`,设置强随机 `JWT_SECRET`(至少 32 字符)。
+2. 按需设置 `CORS_ORIGINS`(同源通过 nginx 代理时通常无需改)。
+3. 启动:
+
+```bash
+docker compose up -d --build
+```
+
+访问 `http://localhost:8080`。API 位于同源 `/api/` 路径下,由 nginx 反向代理到后端(含 SSE 配置)。SQLite 数据保存在 `api-data` 卷中,容器重建不丢数据。
+
+生产环境必须设置 `COOKIE_SECURE=true` 并置于 HTTPS 之后;同时把 `CORS_ORIGINS` 限制为实际域名。
+
+## 环境变量
+
+后端变量见 `server/.env.example`,全部在启动时校验,缺失或不合法会快速失败。关键项:
+
+| 变量 | 说明 |
+|---|---|
+| JWT_SECRET | 签名密钥,生产必须替换占位值 |
+| JWT_ACCESS_TTL / JWT_REFRESH_TTL | 访问/刷新令牌有效期 |
+| COOKIE_SECURE | 生产 HTTPS 下设为 true |
+| DATABASE_PATH | SQLite 文件位置 |
+| CORS_ORIGINS | 显式来源,生产禁止 `*` |
+| RATE_LIMIT_MAX / WINDOW | 全局限流阈值 |
+
+## 健康检查
+
+- `GET /health`:存活探针。
+- `GET /ready`:就绪探针(检查数据库连接)。
+- `GET /api/docs/json`:OpenAPI 文档。
+- `GET /api/docs`:Swagger UI。
+
+## 数据迁移
+
+迁移是追加式的,由 `npm run server:migrate` 在部署前执行;应用启动时也会自动补齐未应用的迁移。已应用的迁移不可修改。
+
+## 备份与恢复
+
+SQLite 单文件便于备份:停止 API 容器后复制 `api-data` 卷中的 `.db` 文件。恢复时放回同名文件并重启即可。
