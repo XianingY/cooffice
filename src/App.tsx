@@ -10,6 +10,7 @@ import {
   downloadBlob,
   downloadSalesWorkbook,
 } from "./adapters/xlsx/downloadWorkbook";
+import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FileImport } from "./components/FileImport";
@@ -72,6 +73,8 @@ export default function App() {
     ...DEFAULT_REPORT_CONFIG,
     blocks: [...DEFAULT_REPORT_CONFIG.blocks],
   }));
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiPolishedText, setAiPolishedText] = useState("");
   const skipNextSave = useRef(false);
 
   // Persist only confirmed/draft data. After "clear" the snapshot stays
@@ -260,6 +263,30 @@ export default function App() {
         <RegionChart chart={draftChart} />
         <ReportConfigPanel config={reportConfig} onChange={setReportConfig} />
       </div>
+
+      <div className="ai-panel">
+        <button type="button" onClick={() => setAiDialogOpen(true)}>
+          AI 润色设置
+        </button>
+        <p className="hint">AI 仅润色文字,不参与数值计算;默认确定性模板,不需要网络。</p>
+        {aiPolishedText ? (
+          <div role="region" aria-label="AI 润色结果" className="ai-result">
+            <h3>AI 润色结果(仅供参考,不改变报告数值)</h3>
+            <p>{aiPolishedText}</p>
+          </div>
+        ) : null}
+      </div>
+      {aiDialogOpen ? (
+        <AiPolishDialog
+          report={baselineReport}
+          onResult={(text) => {
+            setAiPolishedText(text);
+            setAiDialogOpen(false);
+          }}
+          onFallback={(message) => setExportError(message)}
+          onClose={() => setAiDialogOpen(false)}
+        />
+      ) : null}
 
       <footer className="app-footer">
         文件仅在浏览器本地处理，不会上传到服务器；导出始终使用已确认版本。
