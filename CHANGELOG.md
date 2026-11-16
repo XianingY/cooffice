@@ -2,6 +2,24 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.1.0] - 2026-11-17（全栈化迭代）
+
+### Added
+
+- 后端 Fastify 5 + SQLite(better-sqlite3,WAL)服务,分层为 routes/services/repositories。
+- 集中环境变量校验、类型化错误体系、结构化日志与请求 ID、全局错误处理、健康检查与优雅停机。
+- 认证体系:scrypt 密码哈希、JWT 访问令牌、哈希存储的刷新令牌与家族轮换、HttpOnly Cookie、RBAC。
+- 项目与报告 API:CRUD、草稿编辑/应用/撤销、乐观锁、服务端权威计算、分页排序、审计日志与 OpenAPI。
+- SSE 项目变更通知(带心跳与自动重连)与管理员审计查询端点。
+- 前端类型化 API 客户端(401 自动刷新、5xx 指数退避重试)、内存会话、登录注册、项目列表、账号设置与可选云面板。
+- Docker 与 docker-compose 部署、CI 前后端并行校验、全栈端到端测试。
+
+### Changed
+
+- 云功能需显式配置 `VITE_API_BASE_URL`;纯本地模式不发任何网络请求。
+- Word 导出改为按需加载,首屏 bundle 由 838 kB 降至 692 kB。
+- 数据库新增迁移 5 的覆盖索引,列表与审计查询使用索引。
+
 ## [1.0.0] - 2026-11-16
 
 ### Added
