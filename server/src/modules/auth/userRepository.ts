@@ -49,4 +49,9 @@ export class UserRepository {
     this.db.prepare("UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?")
       .run(passwordHash, new Date().toISOString(), id);
   }
+
+  updateDisplayName(id: string, displayName: string): void {
+    this.db.prepare("UPDATE users SET display_name = ?, updated_at = ? WHERE id = ?")
+      .run(displayName, new Date().toISOString(), id);
+  }
 }

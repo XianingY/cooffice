@@ -14,6 +14,8 @@ import { AuditRepository } from "./modules/audit/auditRepository.js";
 import { registerAuditRoutes } from "./modules/audit/auditRoutes.js";
 import { createTokenService } from "./modules/auth/tokens.js";
 import { AuthService } from "./modules/auth/authService.js";
+import { ProfileService } from "./modules/auth/profileService.js";
+import { registerProfileRoutes } from "./modules/auth/profileRoutes.js";
 import { registerAuthRoutes } from "./modules/auth/authRoutes.js";
 import { registerProjectRoutes } from "./modules/projects/projectRoutes.js";
 import { ProjectRepository } from "./modules/projects/projectRepository.js";
@@ -87,6 +89,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(registerApiDocs);
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
+  await app.register(registerProfileRoutes, { service: new ProfileService(users), tokens });
   await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerReportRoutes, { service: reportService, tokens });
   await app.register(registerSseRoutes, { bus: eventBus, tokens });
