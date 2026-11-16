@@ -1,6 +1,20 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import type { FastifyInstance } from "fastify";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
+
+// Keep the documented version in sync with the deployed package version.
+const packageVersion = (() => {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const manifest = resolve(here, "../../package.json");
+    return (JSON.parse(readFileSync(manifest, "utf-8")) as { version: string }).version;
+  } catch {
+    return "1.1.0";
+  }
+})();
 
 /** Lightweight route metadata so Swagger discovers routes without replacing
  * Zod's strict runtime validation with JSON Schema validation. */
@@ -21,7 +35,7 @@ export async function registerApiDocs(app: FastifyInstance): Promise<void> {
       openapi: "3.1.0",
       info: {
         title: "What-if Report API",
-        version: "1.0.0",
+        version: packageVersion,
         description: "Authenticated API for projects, reports and analytics. All responses use a normalized error shape.",
       },
       servers: [{ url: "/" }],

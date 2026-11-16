@@ -27,6 +27,7 @@ describe("OpenAPI documentation", () => {
     const doc = response.json();
     expect(doc.openapi).toMatch(/^3\.1/);
     expect(doc.info.title).toBe("What-if Report API");
+    expect(doc.info.version).toBe("1.1.0");
     expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining([
       "/api/auth/login",
       "/api/projects",
