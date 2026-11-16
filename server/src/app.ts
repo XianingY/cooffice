@@ -14,6 +14,8 @@ import { AuditRepository } from "./modules/audit/auditRepository.js";
 import { registerAuditRoutes } from "./modules/audit/auditRoutes.js";
 import { createTokenService } from "./modules/auth/tokens.js";
 import { AuthService } from "./modules/auth/authService.js";
+import { RefreshTokenCleanupJob } from "./modules/auth/cleanupJob.js";
+import { createLogger } from "./logging/logger.js";
 import { ProfileService } from "./modules/auth/profileService.js";
 import { registerProfileRoutes } from "./modules/auth/profileRoutes.js";
 import { registerAuthRoutes } from "./modules/auth/authRoutes.js";
@@ -89,6 +91,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(registerReportRoutes, { service: reportService, tokens });
   await app.register(registerSseRoutes, { bus: eventBus, tokens });
   await app.register(registerAuditRoutes, { repo: audit, tokens });
+
+  // Background cleanup is idempotent and independent of request handling.
+  const cleanupJob = new RefreshTokenCleanupJob({
+    repo: refreshTokens,
+    logger: createLogger(env.LOG_LEVEL, false),
+  });
+  cleanupJob.start();
+  app.addHook("onClose", async () => cleanupJob.stop());
 
   return app;
 }
