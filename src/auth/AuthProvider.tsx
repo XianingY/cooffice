@@ -83,8 +83,17 @@ export function AuthProvider({ api, children }: { api: Api; children: ReactNode 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/** Default no-op context keeps the local-first app usable without a provider. */
+const LOCAL_CONTEXT: AuthContextValue = {
+  user: null,
+  ready: true,
+  error: "",
+  signIn: async () => { throw new Error("Auth is not configured"); },
+  signUp: async () => { throw new Error("Auth is not configured"); },
+  signOut: async () => {},
+  clearError: () => {},
+};
+
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside AuthProvider");
-  return context;
+  return useContext(AuthContext) ?? LOCAL_CONTEXT;
 }

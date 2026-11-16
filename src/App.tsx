@@ -12,6 +12,7 @@ import {
 } from "./adapters/xlsx/downloadWorkbook";
 import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
+import { CloudPanel } from "./components/CloudPanel";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
@@ -265,6 +266,17 @@ export default function App() {
         <RegionChart chart={draftChart} />
         <ReportConfigPanel config={reportConfig} onChange={setReportConfig} />
       </div>
+
+      <CloudPanel
+        baseline={state.baseline}
+        draft={state.draft}
+        config={reportConfig}
+        onOpenProject={(baseline, draft, config) => {
+          dispatch({ type: "importDocument", baseline, draft });
+          setReportConfig(normaliseReportConfig(config));
+          setImportError("");
+        }}
+      />
 
       <div className="ai-panel">
         <button type="button" onClick={() => setAiDialogOpen(true)}>
