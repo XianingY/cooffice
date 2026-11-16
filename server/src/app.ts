@@ -20,6 +20,7 @@ import { ProjectService } from "./modules/projects/projectService.js";
 import { ReportService } from "./modules/reports/reportService.js";
 import { registerReportRoutes } from "./modules/reports/reportRoutes.js";
 import { registerHealthRoutes } from "./health/routes.js";
+import { registerApiDocs } from "./docs/openapi.js";
 
 export interface BuildAppOptions {
   env: Env;
@@ -76,6 +77,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const projectService = new ProjectService(projectRepo, audit);
   const reportService = new ReportService(projectService);
 
+  // Swagger must initialize before routes so it can collect their schemas.
+  await app.register(registerApiDocs);
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
   await app.register(registerProjectRoutes, { service: projectService, tokens });

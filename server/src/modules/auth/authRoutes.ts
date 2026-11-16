@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AppError } from "../../errors/AppError.js";
 import { parseBody } from "../../middleware/validate.js";
 import type { Env } from "../../config/env.js";
+import { docsMeta } from "../../docs/openapi.js";
 import { UserRepository } from "./userRepository.js";
 import { AuthService } from "./authService.js";
 import { makeAuthGuard } from "./authMiddleware.js";
@@ -43,7 +44,7 @@ export interface AuthRouteDeps {
 export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): Promise<void> {
   const guard = makeAuthGuard(deps.tokens);
 
-  app.post("/api/auth/register", async (request, reply) => {
+  app.post("/api/auth/register", { schema: docsMeta.register }, async (request, reply) => {
     const body = parseBody(registerSchema, request.body);
     const pair = await deps.service.register(body, request.requestId);
     void reply.setCookie(REFRESH_COOKIE, pair.refreshToken, refreshCookieOptions(deps.env));
@@ -51,6 +52,7 @@ export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDe
   });
 
   app.post("/api/auth/login", {
+    schema: docsMeta.login,
     config: { rateLimit: { max: 10, timeWindow: "15m" } },
   }, async (request, reply) => {
     const body = parseBody(loginSchema, request.body);
@@ -74,7 +76,7 @@ export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDe
     return { ok: true };
   });
 
-  app.get("/api/auth/me", { preHandler: guard }, async (request) => {
+  app.get("/api/auth/me", { preHandler: guard, schema: docsMeta.me }, async (request) => {
     const user = deps.users.findById(request.auth!.sub);
     if (!user) throw AppError.unauthorized("Account no longer exists");
     return { id: user.id, email: user.email, displayName: user.displayName, role: user.role, createdAt: user.createdAt };

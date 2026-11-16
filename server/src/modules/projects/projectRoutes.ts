@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { makeAuthGuard, currentUserId } from "../auth/authMiddleware.js";
 import { parseBody } from "../../middleware/validate.js";
+import { docsMeta } from "../../docs/openapi.js";
 import type { TokenService } from "../auth/tokens.js";
 import {
   createProjectSchema,
@@ -20,7 +21,7 @@ export async function registerProjectRoutes(app: FastifyInstance, deps: ProjectR
   const guard = makeAuthGuard(deps.tokens);
   const protectedOpts = { preHandler: guard };
 
-  app.post("/api/projects", protectedOpts, async (request, reply) => {
+  app.post("/api/projects", { ...protectedOpts, schema: docsMeta.createProject }, async (request, reply) => {
     const body = parseBody(createProjectSchema, request.body);
     const project = deps.service.create(currentUserId(request), body, request.requestId);
     void reply.status(201);
