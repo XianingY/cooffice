@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { api, setRefreshHandler } from "./api/factory";
+import { api, cloudEnabled, setRefreshHandler } from "./api/factory";
 import { tokenStore } from "./auth/tokenStore";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./styles.css";
@@ -19,7 +19,7 @@ setRefreshHandler(async () => {
 });
 
 createRoot(document.getElementById("root")!).render(
-  <AuthProvider api={api}>
+  <AuthProvider api={api} enabled={cloudEnabled}>
     <App />
   </AuthProvider>,
 );

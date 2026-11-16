@@ -27,8 +27,8 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /** Holds the session in memory and restores it via the HttpOnly refresh cookie. */
-export function AuthProvider({ api, children }: { api: Api; children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ user: null, ready: false, error: "" });
+export function AuthProvider({ api, children, enabled = true }: { api: Api; children: ReactNode; enabled?: boolean }) {
+  const [state, setState] = useState<AuthState>({ user: null, ready: enabled, error: "" });
 
   const applyTokens = useCallback(
     (response: { accessToken: string; user: AuthState["user"] }) => {
@@ -39,12 +39,13 @@ export function AuthProvider({ api, children }: { api: Api; children: ReactNode 
   );
 
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
     api.auth.refresh()
       .then((response) => { if (active) applyTokens(response); })
       .catch(() => { if (active) setState({ user: null, ready: true, error: "" }); });
     return () => { active = false; };
-  }, [api, applyTokens]);
+  }, [api, applyTokens, enabled]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {

@@ -12,7 +12,11 @@ export function setRefreshHandler(handler: () => Promise<boolean>): void {
   refreshHandler = handler;
 }
 
-const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+const configuredBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+
+/** Cloud features are disabled unless a backend URL is explicitly configured. */
+export const cloudEnabled = configuredBase.length > 0;
+const baseUrl = configuredBase;
 
 const client = new ApiClient({
   baseUrl,

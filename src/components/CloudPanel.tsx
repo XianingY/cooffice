@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api/factory";
+import { api, cloudEnabled } from "../api/factory";
 import { useAuth } from "../auth/AuthProvider";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useCloudProject } from "../hooks/useCloudProject";
@@ -38,8 +38,11 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
   return (
     <section className="panel cloud-panel" aria-labelledby="cloud-title">
       <h2 id="cloud-title">云端同步(可选)</h2>
-      {!online ? <p role="status" className="status-notice">当前离线,本地功能仍可使用。</p> : null}
-      {!user ? <AuthForms /> : (
+      {!cloudEnabled ? (
+        <p className="hint">未配置后端地址,当前为纯本地模式。配置 VITE_API_BASE_URL 后可启用登录与云同步。</p>
+      ) : !online ? (
+        <p role="status" className="status-notice">当前离线,本地功能仍可使用。</p>
+      ) : !user ? <AuthForms /> : (
         <>
           <p className="hint">已登录为 {user.email}</p>
           <div className="cloud-save">
