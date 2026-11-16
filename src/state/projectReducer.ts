@@ -10,6 +10,7 @@ export interface ProjectState {
 
 export type ProjectAction =
   | { type: "import"; data: SalesData }
+  | { type: "importDocument"; baseline: SalesData; draft: SalesData }
   | { type: "edit"; regionId: string; value: number }
   | { type: "apply" }
   | { type: "revert" }
@@ -29,6 +30,14 @@ export function initialProjectState(data: SalesData): ProjectState {
 export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
   if (action.type === "clear") return initialProjectState(salesDemo);
   if (action.type === "import") return initialProjectState(action.data);
+  if (action.type === "importDocument") {
+    return {
+      baseline: structuredClone(action.baseline),
+      draft: structuredClone(action.draft),
+      selectedImpactId: null,
+      sourceCells: [],
+    };
+  }
   if (action.type === "apply") return initialProjectState(state.draft);
   if (action.type === "revert") {
     return { ...state, draft: structuredClone(state.baseline), selectedImpactId: null, sourceCells: [] };

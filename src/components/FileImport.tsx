@@ -1,13 +1,16 @@
 import { useState, type ChangeEvent } from "react";
+import { readCsvFile } from "../adapters/csv/salesCsv";
 import { readSalesFile } from "../adapters/xlsx/salesWorkbook";
-import type { SalesData } from "../core/types";
+import { suggestColumnMapping } from "../core/columnMapping";
+import type { ColumnMapping, SalesData, TabularInput } from "../core/types";
 
 interface FileImportProps {
   onImport(data: SalesData): void;
+  onCsvInput(input: TabularInput, suggested: ColumnMapping): void;
   onError(message: string): void;
 }
 
-export function FileImport({ onImport, onError }: FileImportProps) {
+export function FileImport({ onImport, onCsvInput, onError }: FileImportProps) {
   const [busy, setBusy] = useState(false);
 
   const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -17,9 +20,15 @@ export function FileImport({ onImport, onError }: FileImportProps) {
 
     setBusy(true);
     try {
-      const data = await readSalesFile(file);
-      onError("");
-      onImport(data);
+      if (file.name.toLowerCase().endsWith(".csv")) {
+        const table = await readCsvFile(file);
+        onError("");
+        onCsvInput(table, suggestColumnMapping(table));
+      } else {
+        const data = await readSalesFile(file);
+        onError("");
+        onImport(data);
+      }
     } catch (error) {
       // Only the adapter's human-readable reason is shown; file content is
       // never logged or placed into UI state.
@@ -32,11 +41,11 @@ export function FileImport({ onImport, onError }: FileImportProps) {
 
   return (
     <div className="file-import">
-      <label htmlFor="sales-file">导入 Excel（.xlsx，需包含 Sales 工作表）</label>
+      <label htmlFor="sales-file">导入 Excel 或 CSV</label>
       <input
         id="sales-file"
         type="file"
-        accept=".xlsx"
+        accept=".xlsx,.csv"
         disabled={busy}
         onChange={handleChange}
       />

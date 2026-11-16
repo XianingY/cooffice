@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createWordReport } from "./adapters/docx/createWordReport";
+import {
+  downloadProjectFile,
+  readProjectFile,
+} from "./adapters/storage/projectFileStorage";
 import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
 import {
   CONFIRMED_DOCX_FILENAME,
   downloadBlob,
   downloadSalesWorkbook,
 } from "./adapters/xlsx/downloadWorkbook";
+import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
@@ -13,10 +18,12 @@ import { ReportPreview } from "./components/ReportPreview";
 import { SalesTable } from "./components/SalesTable";
 import { StatusMessage } from "./components/StatusMessage";
 import { Toolbar } from "./components/Toolbar";
+import { applyColumnMapping } from "./core/columnMapping";
 import { compareSnapshots } from "./core/impacts";
 import { computeMetrics } from "./core/metrics";
+import { createProjectFile } from "./core/projectFile";
 import { buildReport } from "./core/report";
-import type { SalesData } from "./core/types";
+import type { ColumnMapping, SalesData, TabularInput } from "./core/types";
 import { salesDemo } from "./fixtures/salesDemo";
 import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
 
@@ -53,6 +60,10 @@ export default function App() {
   const [exportError, setExportError] = useState("");
   const [storageWarning, setStorageWarning] = useState(boot.warning);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [pendingCsv, setPendingCsv] = useState<{
+    input: TabularInput;
+    suggested: ColumnMapping;
+  } | null>(null);
   const skipNextSave = useRef(false);
 
   // Persist only confirmed/draft data. After "clear" the snapshot stays
@@ -110,6 +121,43 @@ export default function App() {
     }
   };
 
+  const handleConfirmMapping = (mapping: ColumnMapping) => {
+    if (!pendingCsv) return;
+    try {
+      const data = applyColumnMapping(pendingCsv.input, mapping);
+      setImportError("");
+      dispatch({ type: "import", data });
+      setPendingCsv(null);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "CSV 数据校验失败");
+    }
+  };
+
+  const handleExportProject = () => {
+    try {
+      downloadProjectFile(
+        createProjectFile(state.baseline, state.draft, new Date().toISOString()),
+      );
+      setExportError("");
+    } catch {
+      setExportError("项目文件导出失败，请重试；当前项目未改变");
+    }
+  };
+
+  const handleImportProject = async (file: File) => {
+    try {
+      const document = await readProjectFile(file);
+      setImportError("");
+      dispatch({
+        type: "importDocument",
+        baseline: document.baseline,
+        draft: document.draft,
+      });
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "项目文件导入失败");
+    }
+  };
+
   const notices = [
     storageWarning,
     hasUnappliedDraft ? "导出已确认版本，不包含未应用草稿" : "",
@@ -140,6 +188,10 @@ export default function App() {
           setImportError("");
           dispatch({ type: "import", data });
         }}
+        onCsvInput={(input: TabularInput, suggested: ColumnMapping) => {
+          setPendingCsv({ input, suggested });
+          setImportError("");
+        }}
         onError={setImportError}
       />
       <Toolbar
@@ -149,6 +201,8 @@ export default function App() {
         onClear={() => setClearDialogOpen(true)}
         onExportExcel={handleExportExcel}
         onExportWord={handleExportWord}
+        onExportProject={handleExportProject}
+        onImportProject={handleImportProject}
       />
       <StatusMessage error={importError} exportError={exportError} notices={notices} />
       <ConfirmClearDialog
@@ -156,6 +210,14 @@ export default function App() {
         onCancel={() => setClearDialogOpen(false)}
         onConfirm={handleClear}
       />
+      {pendingCsv ? (
+        <ColumnMappingDialog
+          input={pendingCsv.input}
+          suggested={pendingCsv.suggested}
+          onConfirm={handleConfirmMapping}
+          onCancel={() => setPendingCsv(null)}
+        />
+      ) : null}
 
       <div className="workspace">
         <SalesTable

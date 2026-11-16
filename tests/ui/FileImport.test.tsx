@@ -22,7 +22,7 @@ describe("file import failures", () => {
     const file = new File(["dummy"], "invalid.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    await user.upload(screen.getByLabelText("导入 Excel（.xlsx，需包含 Sales 工作表）"), file);
+    await user.upload(screen.getByLabelText("导入 Excel 或 CSV"), file);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("缺少 Sales 工作表");
     expect(screen.getByLabelText("华东当前销售额")).toHaveValue(90);
@@ -42,7 +42,7 @@ describe("file import failures", () => {
     const file = new File(["dummy"], "valid.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    await user.upload(screen.getByLabelText("导入 Excel（.xlsx，需包含 Sales 工作表）"), file);
+    await user.upload(screen.getByLabelText("导入 Excel 或 CSV"), file);
 
     expect(await screen.findByLabelText("新区域当前销售额")).toHaveValue(20);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
