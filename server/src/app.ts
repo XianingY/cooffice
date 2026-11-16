@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
-import helmet from "@fastify/helmet";
+import { registerSecurity } from "./middleware/security.js";
 import rateLimit from "@fastify/rate-limit";
 import type { Env } from "./config/env.js";
 import { registerRequestLogging } from "./middleware/requestContext.js";
@@ -42,7 +42,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production");
   registerErrorHandler(app);
 
-  await app.register(helmet, { contentSecurityPolicy: false });
+  await registerSecurity(app, env);
   await app.register(cookie);
   await app.register(cors, {
     origin: env.corsOriginList,
