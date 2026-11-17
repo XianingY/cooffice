@@ -57,6 +57,16 @@ jobs:
       - run: npm ci
       - run: npm --prefix server ci
       - run: npm --prefix desktop ci
+      - name: cache electron binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('desktop/package-lock.json') }}
+      - name: cache playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: desktop typecheck and unit tests
         run: npm run desktop:test
       - name: build renderer, api and electron main
@@ -71,3 +81,12 @@ jobs:
         env:
           WHATIF_E2E_NO_SANDBOX: "1"
         run: xvfb-run --auto-servernum npx playwright test --config=playwright.desktop.config.ts
+      - name: keep failure context
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-e2e-failure
+          path: |
+            test-results
+            playwright-report
+          retention-days: 7
