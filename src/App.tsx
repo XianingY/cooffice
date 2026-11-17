@@ -1,18 +1,22 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
-  downloadProjectFile,
+  parseProjectFileText,
+  PROJECT_FILE_FILENAME,
   readProjectFile,
+  serialiseProjectFile,
 } from "./adapters/storage/projectFileStorage";
 import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
+import { importTabularFile } from "./adapters/tabular/importTabularFile";
 import {
   CONFIRMED_DOCX_FILENAME,
-  downloadBlob,
-  downloadSalesWorkbook,
+  CONFIRMED_XLSX_FILENAME,
+  createSalesWorkbookBytes,
 } from "./adapters/xlsx/downloadWorkbook";
 import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
+import { DesktopFooter } from "./components/DesktopFooter";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
 import { RegionChart } from "./components/RegionChart";
@@ -29,8 +33,22 @@ import { createProjectFile } from "./core/projectFile";
 import { buildReport } from "./core/report";
 import { DEFAULT_REPORT_CONFIG, normaliseReportConfig } from "./core/reportConfig";
 import type { ColumnMapping, ReportConfig, SalesData, TabularInput } from "./core/types";
+import {
+  applyDesktopShellChrome,
+  bytesToBlob,
+  forgetCurrentFilePath,
+  getDesktop,
+  saveBlob,
+  setDocumentEdited,
+  shortPath,
+  toFile,
+  trackDocument,
+  type SaveBlobOutcome,
+} from "./desktop/bridge";
 import { salesDemo } from "./fixtures/salesDemo";
 import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 interface BootResult {
   state: ProjectState;
@@ -83,7 +101,9 @@ export default function App() {
   const [reportConfig, setReportConfig] = useState<ReportConfig>(boot.config);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiPolishedText, setAiPolishedText] = useState("");
+  const [saveNotice, setSaveNotice] = useState<{ message: string; path?: string } | null>(null);
   const skipNextSave = useRef(false);
+  const desktop = useMemo(() => getDesktop(), []);
 
   // Persist only confirmed/draft data. After "clear" the snapshot stays
   // removed until the user edits or imports again (design spec section 6.5).
@@ -122,10 +142,35 @@ export default function App() {
     [state.baseline, state.draft],
   );
 
-  const handleExportExcel = () => {
+  // macOS shows an unsaved-changes dot in the close button.
+  useEffect(() => {
+    setDocumentEdited(hasUnappliedDraft);
+  }, [hasUnappliedDraft]);
+
+  const reportSave = (label: string, outcome: SaveBlobOutcome) => {
+    if (!outcome.saved) {
+      setExportError(outcome.error ?? "");
+      return;
+    }
+    setExportError("");
+    setSaveNotice(
+      outcome.filePath
+        ? { message: `${label}已保存到 ${shortPath(outcome.filePath)}`, path: outcome.filePath }
+        : { message: `${label}已开始下载` },
+    );
+  };
+
+  const handleExportExcel = async () => {
     try {
-      downloadSalesWorkbook(state.baseline);
-      setExportError("");
+      const blob = bytesToBlob(createSalesWorkbookBytes(state.baseline), XLSX_MIME);
+      reportSave(
+        "Excel ",
+        await saveBlob(blob, {
+          suggestedName: CONFIRMED_XLSX_FILENAME,
+          filterName: "Excel 工作簿",
+          extensions: ["xlsx"],
+        }),
+      );
     } catch {
       setExportError("Excel 导出失败，请重试；当前项目未改变");
     }
@@ -136,8 +181,14 @@ export default function App() {
       // Load the DOCX library only when the user actually exports Word.
       const { createWordReport } = await import("./adapters/docx/createWordReport");
       const blob = await createWordReport(state.baseline, baselineReport);
-      downloadBlob(blob, CONFIRMED_DOCX_FILENAME);
-      setExportError("");
+      reportSave(
+        "Word ",
+        await saveBlob(blob, {
+          suggestedName: CONFIRMED_DOCX_FILENAME,
+          filterName: "Word 文档",
+          extensions: ["docx"],
+        }),
+      );
     } catch {
       setExportError("Word 导出失败，请重试；当前项目未改变");
     }
@@ -155,14 +206,38 @@ export default function App() {
     }
   };
 
-  const handleExportProject = () => {
+  const handleExportProject = async (inPlace = false) => {
     try {
-      downloadProjectFile(
-        createProjectFile(state.baseline, state.draft, new Date().toISOString(), reportConfig),
+      const snapshot = createProjectFile(
+        state.baseline,
+        state.draft,
+        new Date().toISOString(),
+        reportConfig,
       );
-      setExportError("");
+      const blob = bytesToBlob(new TextEncoder().encode(serialiseProjectFile(snapshot)), "application/json");
+      const outcome = await saveBlob(blob, {
+        suggestedName: PROJECT_FILE_FILENAME,
+        filterName: "What-if 项目",
+        extensions: ["json"],
+        inPlace,
+      });
+      reportSave("项目文件", outcome);
+      if (outcome.saved && outcome.filePath) trackDocument(outcome.filePath);
     } catch {
       setExportError("项目文件导出失败，请重试；当前项目未改变");
+    }
+  };
+
+  /** Apply a project document that already arrived as text (desktop shell). */
+  const applyProjectDocument = (text: string, filePath: string | null) => {
+    try {
+      const document = parseProjectFileText(text);
+      dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
+      setReportConfig(normaliseReportConfig(document.config));
+      setImportError("");
+      if (filePath) trackDocument(filePath);
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "项目文件导入失败");
     }
   };
 
@@ -181,6 +256,44 @@ export default function App() {
     }
   };
 
+  const openProjectFromDisk = async () => {
+    if (!desktop) return;
+    const result = await desktop.openProject();
+    if (result.canceled) {
+      if (result.error) setImportError(result.error);
+      return;
+    }
+    applyProjectDocument(result.text ?? "", result.filePath ?? null);
+  };
+
+  const openRecentProject = async (filePath: string) => {
+    if (!desktop) return;
+    const result = await desktop.openRecent(filePath);
+    if (result.canceled) {
+      if (result.error) setImportError(result.error);
+      return;
+    }
+    applyProjectDocument(result.text ?? "", result.filePath ?? null);
+  };
+
+  const importSpreadsheetFromDisk = async () => {
+    if (!desktop) return;
+    const result = await desktop.openSpreadsheet();
+    if (result.canceled) {
+      if (result.error) setImportError(result.error);
+      return;
+    }
+    try {
+      const file = toFile(result.name ?? "import.xlsx", result.bytes ?? new Uint8Array());
+      const imported = await importTabularFile(file);
+      setImportError("");
+      if (imported.kind === "csv") setPendingCsv({ input: imported.input, suggested: imported.suggested });
+      else dispatch({ type: "import", data: imported.data });
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "文件导入失败，请检查文件后重试");
+    }
+  };
+
   const notices = [
     storageWarning,
     hasUnappliedDraft ? "导出已确认版本，不包含未应用草稿" : "",
@@ -193,15 +306,74 @@ export default function App() {
     } catch {
       setStorageWarning("本地草稿清除失败，当前页面内仍可继续编辑和导出");
     }
+    forgetCurrentFilePath();
     dispatch({ type: "clear" });
     setReportConfig(defaultConfig());
     setClearDialogOpen(false);
     setImportError("");
     setExportError("");
+    setSaveNotice(null);
   };
+
+  // Native menu commands reuse the exact handlers the toolbar buttons call, so
+  // both routes behave identically. A ref keeps the subscription stable.
+  const actionsRef = useRef({
+    openProjectFromDisk,
+    openRecentProject,
+    handleExportProject,
+    handleExportExcel,
+    handleExportWord,
+    importSpreadsheetFromDisk,
+    requestClear: () => setClearDialogOpen(true),
+  });
+  actionsRef.current = {
+    openProjectFromDisk,
+    openRecentProject,
+    handleExportProject,
+    handleExportExcel,
+    handleExportWord,
+    importSpreadsheetFromDisk,
+    requestClear: () => setClearDialogOpen(true),
+  };
+
+  useEffect(() => {
+    if (!desktop) return undefined;
+    applyDesktopShellChrome();
+    return desktop.onMenuAction(({ action, filePath }) => {
+      const actions = actionsRef.current;
+      switch (action) {
+        case "open-project":
+          void actions.openProjectFromDisk();
+          break;
+        case "save-project":
+          void actions.handleExportProject(true);
+          break;
+        case "export-excel":
+          void actions.handleExportExcel();
+          break;
+        case "export-word":
+          void actions.handleExportWord();
+          break;
+        case "import-spreadsheet":
+          void actions.importSpreadsheetFromDisk();
+          break;
+        case "clear-project":
+          actions.requestClear();
+          break;
+        case "open-recent":
+          if (filePath) void actions.openRecentProject(filePath);
+          break;
+        default:
+          break;
+      }
+    });
+  }, [desktop]);
 
   return (
     <main className="app">
+      {/* Draggable strip standing in for the hidden title bar (desktop only). */}
+      <div className="desktop-shell-strip" aria-hidden="true" />
+
       <header className="app-header">
         <h1>What-if Report · 数据沙盘</h1>
         <p>导入固定格式 Excel，试改数值，预览指标与报告结论的变化。</p>
@@ -223,12 +395,27 @@ export default function App() {
         onApply={() => dispatch({ type: "apply" })}
         onRevert={() => dispatch({ type: "revert" })}
         onClear={() => setClearDialogOpen(true)}
-        onExportExcel={handleExportExcel}
-        onExportWord={handleExportWord}
-        onExportProject={handleExportProject}
+        onExportExcel={() => void handleExportExcel()}
+        onExportWord={() => void handleExportWord()}
+        onExportProject={() => void handleExportProject()}
         onImportProject={handleImportProject}
+        onOpenProjectFromDisk={desktop ? () => void openProjectFromDisk() : undefined}
       />
       <StatusMessage error={importError} exportError={exportError} notices={notices} />
+      {saveNotice ? (
+        <p role="status" className="status-notice save-notice">
+          {saveNotice.message}
+          {saveNotice.path && desktop ? (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => void desktop.revealPath(saveNotice.path!)}
+            >
+              在访达中显示
+            </button>
+          ) : null}
+        </p>
+      ) : null}
       <ConfirmClearDialog
         open={clearDialogOpen}
         onCancel={() => setClearDialogOpen(false)}
@@ -304,7 +491,10 @@ export default function App() {
       ) : null}
 
       <footer className="app-footer">
-        文件仅在浏览器本地处理，不会上传到服务器；导出始终使用已确认版本。
+        {desktop
+          ? "文件仅在本机处理：导入、计算与导出都不经过网络，断网也能完整使用。"
+          : "文件仅在浏览器本地处理，不会上传到服务器；导出始终使用已确认版本。"}
+        <DesktopFooter />
       </footer>
     </main>
   );

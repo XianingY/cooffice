@@ -14,9 +14,19 @@ export function setRefreshHandler(handler: () => Promise<boolean>): void {
 
 const configuredBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 
+/**
+ * In the desktop shell the renderer is served by the embedded API, so the
+ * origin is the base URL and there is nothing to configure at build time.
+ * A browser build still needs an explicit VITE_API_BASE_URL to opt in.
+ */
+const runtimeBase =
+  typeof window !== "undefined" && window.desktop?.isDesktop === true && window.location.protocol.startsWith("http")
+    ? window.location.origin
+    : "";
+
 /** Cloud features are disabled unless a backend URL is explicitly configured. */
-export const cloudEnabled = configuredBase.length > 0;
-const baseUrl = configuredBase;
+export const cloudEnabled = runtimeBase.length > 0 || configuredBase.length > 0;
+const baseUrl = runtimeBase || configuredBase;
 
 const client = new ApiClient({
   baseUrl,

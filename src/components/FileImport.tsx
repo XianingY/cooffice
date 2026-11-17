@@ -1,7 +1,5 @@
 import { useState, type ChangeEvent } from "react";
-import { readCsvFile } from "../adapters/csv/salesCsv";
-import { readSalesFile } from "../adapters/xlsx/salesWorkbook";
-import { suggestColumnMapping } from "../core/columnMapping";
+import { importTabularFile } from "../adapters/tabular/importTabularFile";
 import type { ColumnMapping, SalesData, TabularInput } from "../core/types";
 
 interface FileImportProps {
@@ -20,15 +18,10 @@ export function FileImport({ onImport, onCsvInput, onError }: FileImportProps) {
 
     setBusy(true);
     try {
-      if (file.name.toLowerCase().endsWith(".csv")) {
-        const table = await readCsvFile(file);
-        onError("");
-        onCsvInput(table, suggestColumnMapping(table));
-      } else {
-        const data = await readSalesFile(file);
-        onError("");
-        onImport(data);
-      }
+      const result = await importTabularFile(file);
+      onError("");
+      if (result.kind === "csv") onCsvInput(result.input, result.suggested);
+      else onImport(result.data);
     } catch (error) {
       // Only the adapter's human-readable reason is shown; file content is
       // never logged or placed into UI state.

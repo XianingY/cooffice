@@ -10,6 +10,18 @@ export function downloadSalesWorkbook(data: SalesData): void {
   XLSX.writeFile(createSalesWorkbook(data), CONFIRMED_XLSX_FILENAME);
 }
 
+/**
+ * Workbook bytes for the desktop save dialog, which needs the payload in
+ * memory rather than a browser-initiated download.
+ */
+export function createSalesWorkbookBytes(data: SalesData): Uint8Array {
+  const written: ArrayBuffer | Uint8Array = XLSX.write(createSalesWorkbook(data), {
+    type: "array",
+    bookType: "xlsx",
+  });
+  return written instanceof Uint8Array ? written : new Uint8Array(written);
+}
+
 /** Shared browser download helper for generated Blobs (Word and future formats). */
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);

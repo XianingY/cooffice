@@ -7,6 +7,8 @@ interface ToolbarProps {
   onExportWord?(): void;
   onExportProject?(): void;
   onImportProject?(file: File): void;
+  /** Present in the desktop shell: opens the native file dialog instead. */
+  onOpenProjectFromDisk?(): void;
 }
 
 export function Toolbar({
@@ -18,6 +20,7 @@ export function Toolbar({
   onExportWord,
   onExportProject,
   onImportProject,
+  onOpenProjectFromDisk,
 }: ToolbarProps) {
   return (
     <div className="toolbar" role="toolbar" aria-label="项目操作">
@@ -48,7 +51,11 @@ export function Toolbar({
           导出项目文件
         </button>
       ) : null}
-      {onImportProject ? (
+      {onOpenProjectFromDisk ? (
+        <button type="button" onClick={onOpenProjectFromDisk}>
+          打开项目文件
+        </button>
+      ) : onImportProject ? (
         <label className="button-link" htmlFor="project-file">
           导入项目文件
           <input
