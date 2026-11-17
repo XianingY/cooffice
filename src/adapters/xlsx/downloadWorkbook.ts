@@ -1,11 +1,18 @@
 import * as XLSX from "xlsx";
 import type { SalesData } from "../../core/types";
 import { createSalesWorkbook } from "./salesWorkbook";
+import { CONFIRMED_DOCX_FILENAME, CONFIRMED_XLSX_FILENAME } from "./filenames";
 
-export const CONFIRMED_XLSX_FILENAME = "what-if-report-confirmed.xlsx";
-export const CONFIRMED_DOCX_FILENAME = "what-if-report-confirmed.docx";
+export { CONFIRMED_DOCX_FILENAME, CONFIRMED_XLSX_FILENAME };
+// Re-exported so existing callers keep one import site.
+export { downloadBlob } from "../download";
 
-/** Always writes a new file from confirmed data; the original is untouched. */
+/**
+ * Always writes a new file from confirmed data; the original is untouched.
+ *
+ * Loaded lazily by the UI: SheetJS is ~420 kB of the first paint for a feature
+ * most sessions never use.
+ */
 export function downloadSalesWorkbook(data: SalesData): void {
   XLSX.writeFile(createSalesWorkbook(data), CONFIRMED_XLSX_FILENAME);
 }
@@ -20,17 +27,4 @@ export function createSalesWorkbookBytes(data: SalesData): Uint8Array {
     bookType: "xlsx",
   });
   return written instanceof Uint8Array ? written : new Uint8Array(written);
-}
-
-/** Shared browser download helper for generated Blobs (Word and future formats). */
-export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  // Give the browser a tick to start the download before revoking the URL.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

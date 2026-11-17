@@ -3,16 +3,17 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App from "../../src/App";
 import { createWordReport } from "../../src/adapters/docx/createWordReport";
-import { createSalesWorkbookBytes, downloadBlob } from "../../src/adapters/xlsx/downloadWorkbook";
+import { downloadBlob } from "../../src/adapters/download";
+import { createSalesWorkbookBytes } from "../../src/adapters/xlsx/downloadWorkbook";
 
 vi.mock("../../src/adapters/docx/createWordReport", () => ({ createWordReport: vi.fn() }));
+vi.mock("../../src/adapters/download", () => ({ downloadBlob: vi.fn() }));
 vi.mock("../../src/adapters/xlsx/downloadWorkbook", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/adapters/xlsx/downloadWorkbook")>();
   return {
     ...actual,
     // Keep the real workbook builder so the exported payload is still inspected.
     createSalesWorkbookBytes: vi.fn(actual.createSalesWorkbookBytes),
-    downloadBlob: vi.fn(),
   };
 });
 
@@ -30,8 +31,12 @@ describe("export uses the confirmed baseline", () => {
     expect(screen.getByText("导出已确认版本，不包含未应用草稿")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "导出 Excel" }));
-    expect(createSalesWorkbookBytes).toHaveBeenCalledWith(
-      expect.objectContaining({ regions: expect.arrayContaining([confirmedEast]) }),
+    // The workbook module is loaded on demand, so assertions wait for the click
+    // to resolve rather than assuming it is already in memory.
+    await waitFor(() =>
+      expect(createSalesWorkbookBytes).toHaveBeenCalledWith(
+        expect.objectContaining({ regions: expect.arrayContaining([confirmedEast]) }),
+      ),
     );
     await waitFor(() =>
       expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "what-if-report-confirmed.xlsx"),

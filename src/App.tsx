@@ -7,11 +7,7 @@ import {
 } from "./adapters/storage/projectFileStorage";
 import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
 import { importTabularFile } from "./adapters/tabular/importTabularFile";
-import {
-  CONFIRMED_DOCX_FILENAME,
-  CONFIRMED_XLSX_FILENAME,
-  createSalesWorkbookBytes,
-} from "./adapters/xlsx/downloadWorkbook";
+import { CONFIRMED_DOCX_FILENAME, CONFIRMED_XLSX_FILENAME } from "./adapters/xlsx/filenames";
 import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
@@ -162,6 +158,8 @@ export default function App() {
 
   const handleExportExcel = async () => {
     try {
+      // SheetJS is only fetched when the user actually exports a workbook.
+      const { createSalesWorkbookBytes } = await import("./adapters/xlsx/downloadWorkbook");
       const blob = bytesToBlob(createSalesWorkbookBytes(state.baseline), XLSX_MIME);
       reportSave(
         "Excel ",

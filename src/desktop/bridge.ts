@@ -154,7 +154,7 @@ export interface SaveBlobOutcome {
 export async function saveBlob(blob: Blob, options: SaveBlobOptions): Promise<SaveBlobOutcome> {
   const bridge = getDesktop();
   if (!bridge) {
-    const { downloadBlob } = await import("../adapters/xlsx/downloadWorkbook");
+    const { downloadBlob } = await import("../adapters/download");
     downloadBlob(blob, options.suggestedName);
     return { saved: true };
   }
