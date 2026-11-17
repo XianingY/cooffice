@@ -17,6 +17,7 @@ const env: Env = {
   CORS_ORIGINS: "http://localhost:5173",
   RATE_LIMIT_MAX: 1000,
   RATE_LIMIT_WINDOW: "1m",
+  API_DOCS: true,
   SERVE_STATIC: false,
   STATIC_DIR: "../dist",
   corsOriginList: ["http://localhost:5173"],
@@ -92,6 +93,17 @@ describe("app integration", () => {
     expect(error.code).toBe("VALIDATION_ERROR");
     expect(error.details).toEqual(expect.arrayContaining([expect.objectContaining({ path: "email" })]));
     expect(error.requestId).toBeDefined();
+  });
+
+  it("serves the API docs only when they are enabled", async () => {
+    const withDocs = await createApp();
+    expect((await withDocs.inject({ method: "GET", url: "/api/docs/json" })).statusCode).toBe(200);
+
+    await app?.close();
+    app = await buildApp({ env: { ...env, API_DOCS: false } });
+    await app.ready();
+    // Embedded desktop builds turn the explorer off; it must not linger.
+    expect((await app.inject({ method: "GET", url: "/api/docs/json" })).statusCode).toBe(404);
   });
 
   it("returns a normalized 404 for unknown routes", async () => {

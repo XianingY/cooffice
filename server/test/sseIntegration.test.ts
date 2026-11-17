@@ -10,7 +10,7 @@ const env: Env = {
   JWT_SECRET: "integration-secret-long-enough-for-hs256",
   JWT_ACCESS_TTL: "15m", JWT_REFRESH_TTL: "7d", COOKIE_SECURE: false,
   DATABASE_PATH: ":memory:", CORS_ORIGINS: "http://localhost:5173",
-  RATE_LIMIT_MAX: 1000, RATE_LIMIT_WINDOW: "1m", SERVE_STATIC: false, STATIC_DIR: "../dist",
+  RATE_LIMIT_MAX: 1000, RATE_LIMIT_WINDOW: "1m", API_DOCS: true, SERVE_STATIC: false, STATIC_DIR: "../dist",
   corsOriginList: ["http://localhost:5173"],
 };
 const data = { regions: [{ id: "region-1", name: "华东", previous: 100, current: 120, previousCell: "B2", currentCell: "C2" }] };

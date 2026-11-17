@@ -25,6 +25,8 @@ const schema = z.object({
   RATE_LIMIT_MAX: positiveInt.default(100),
   RATE_LIMIT_WINDOW: z.string().default("1m"),
 
+  /** OpenAPI/Swagger UI; development and API deployments only. */
+  API_DOCS: booleanFromString.default("true"),
   SERVE_STATIC: booleanFromString.default("false"),
   STATIC_DIR: z.string().default("../dist"),
 });

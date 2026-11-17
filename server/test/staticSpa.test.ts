@@ -32,6 +32,7 @@ function envFor(): Env {
     CORS_ORIGINS: "http://localhost:5173",
     RATE_LIMIT_MAX: 1000,
     RATE_LIMIT_WINDOW: "1m",
+    API_DOCS: true,
     SERVE_STATIC: true,
     STATIC_DIR: staticDir,
     corsOriginList: ["http://localhost:5173"],

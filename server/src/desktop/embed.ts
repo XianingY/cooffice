@@ -66,6 +66,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
       COOKIE_SECURE: "false",
       RATE_LIMIT_MAX: "600",
       RATE_LIMIT_WINDOW: "1m",
+      API_DOCS: "false",
       SERVE_STATIC: "true",
       STATIC_DIR: staticDir,
     });

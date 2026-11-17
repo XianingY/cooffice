@@ -83,7 +83,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   Object.assign(app, { eventBus });
 
   // Swagger must initialize before routes so it can collect their schemas.
-  await app.register(registerApiDocs);
+  // Embedded desktop builds skip it: no user opens an API explorer there, and
+  // it is a few megabytes of static assets plus an extra exposed route.
+  if (env.API_DOCS) await app.register(registerApiDocs);
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
   await app.register(registerProfileRoutes, { service: new ProfileService(users), tokens });
