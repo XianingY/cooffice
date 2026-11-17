@@ -2,6 +2,29 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.3.0] - 2026-11-17（桌面加固与性能）
+
+### Added
+
+- 桌面 API 会话令牌：每次启动生成 32 字节随机令牌，`/api/*` 必须携带 `x-whatif-session`，阻断同机其它进程直接读写项目库；令牌经同步 IPC 交给渲染进程（不走 argv）。
+- 迁移前自动快照：schema 有变更时用 SQLite 在线备份 API 复制到 `<profile>/backups`，保留最近 5 份；快照失败不阻塞启动。
+- Electron fuses：关闭 `runAsNode`、`NODE_OPTIONS`、CLI inspect 与额外 file 协议权限，开启 Cookie 加密、asar 完整性校验与 only-load-from-asar。
+- 桌面 E2E 增至 11 项：未保存标记、菜单指令回传、窗口位置跨重启恢复、经守卫的注册流程。
+- 后端日志测试（文件写入、脱敏、pretty 缺失回退）与数据库快照测试。
+
+### Changed
+
+- 首屏 JS 从 694 kB 降到 269 kB（gzip 227→85 kB）：SheetJS 改为按需加载，只在导入/导出表格时下载 427 kB 分块。
+- 桌面构建不再注册 Swagger UI，并把 `pino-pretty` 移到 devDependencies：包体减少约 4.7 MB，少一个可访问路由；缺少 pretty 传输时自动退回 JSON 日志。
+- 桌面顶部拖拽条改为半透明 + 背景模糊，滚动内容不再被不透明色块切掉。
+- CI 桌面任务缓存 Electron 与 Playwright 浏览器，失败时上传 `test-results` 与报告。
+
+### Verified
+
+- 根 Vitest：70 文件 / 312 项；后端 Vitest：35 文件 / 120 项；桌面单测：9 文件 / 45 项。
+- 浏览器 E2E 13 项、全栈 E2E 2 项、Electron E2E 11 项通过。
+- 打包后启动冒烟通过，`electron-fuses read` 确认八个 fuse 均为预期状态。
+
 ## [1.2.0] - 2026-11-17（桌面应用迭代）
 
 ### Added

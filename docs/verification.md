@@ -1,6 +1,6 @@
 # 验证记录
 
-本文档记录 v1.2.0 的本地验收基线与执行方式,便于维护者复现。
+本文档记录 v1.3.0 的本地验收基线与执行方式,便于维护者复现。
 
 ## 门禁命令
 
@@ -16,12 +16,13 @@ npm run test:e2e:desktop # 真实 Electron 端到端(受限环境加 WHATIF_E2E_
 | 检查 | 结果 |
 |---|---|
 | `npm run typecheck` | 通过 |
-| `npm test`(根 Vitest,含前端与后端) | 70 文件 / 293 项通过 |
+| `npm test`(根 Vitest,含前端与后端) | 70 文件 / 312 项通过 |
+| `npm run server:test`(后端 Vitest) | 35 文件 / 120 项通过 |
 | `npm run test:e2e`(浏览器) | 13 项通过 |
 | `npm run test:e2e:full`(真实前后端) | 2 项通过 |
 | `npm run desktop:test`(桌面主进程) | 9 文件 / 45 项通过 |
-| `npm run test:e2e:desktop`(真实 Electron) | 7 项通过 |
-| `npm run build`(前端生产构建) | 通过,首屏约 692 kB + Word 懒加载块 171 kB |
+| `npm run test:e2e:desktop`(真实 Electron) | 11 项通过 |
+| `npm run build`(前端生产构建) | 通过,首屏 269 kB(gzip 85 kB)+ 表格 427 kB / Word 171 kB 懒加载块 |
 | `npm run server:build` | 通过 |
 | `npm run smoke`(server,真实进程) | 健康/就绪/注册端点通过 |
 | `docker compose config` | 配置有效 |

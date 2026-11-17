@@ -34,6 +34,16 @@ What-if Report.app/Contents/Resources/
 4. 打开窗口并加载 `http://127.0.0.1:<port>/`。
 5. 退出时先关 HTTP 服务、再关数据库。
 
+### 三道本地防线
+
+| 防线 | 做法 | 挡住什么 |
+|---|---|---|
+| 只绑定回环 | 服务器只监听 `127.0.0.1` 的随机端口 | 局域网与其它的机器 |
+| 每次启动的会话令牌 | 32 字节随机值，`/api/*` 必须带 `x-whatif-session`（`timingSafeEqual` 比较） | 同机上扫描端口、试图直接读写项目库的其它程序 |
+| 渲染进程沙箱 | `contextIsolation` + `nodeIntegration:false` + 权限全拒 + 固定的 IPC 白名单 | 页面内被注入的脚本拿到系统能力 |
+
+令牌经同步 IPC 交给渲染进程（而不是命令行参数——`ps` 能看到 argv），随后由 API 客户端与 SSE 请求统一附加。浏览器与容器部署不设置令牌，守卫根本不会安装。
+
 同源托管是关键设计：`fetch`、Cookie、SSE 都走同一个 origin，因此**不需要任何 CORS 例外**，也不存在 `file://` 下的存储与相对路径问题。Web 版与桌面版共用同一份前端产物，桌面模式仅通过 preload 注入的 `window.desktop` 启用原生能力。
 
 ### 数据与日志位置
@@ -60,6 +70,8 @@ What-if Report.app/Contents/Resources/
 | 外链安全 | `window.open`、非本应用跳转一律拦截并交给系统浏览器；相机/麦克风/定位/录屏权限全部拒绝 |
 | 更新检查 | 「检查更新…」读取 `WHATIF_UPDATE_FEED`（仅 https），未配置时如实提示而非假装已检查 |
 | 崩溃可诊断 | 渲染进程日志经 IPC 落到主进程日志文件，用户反馈问题时可直接提供日志目录 |
+| 升级可回滚 | schema 有变更前用 SQLite 在线备份 API 快照到 `backups/`，保留最近 5 份；失败只告警不阻塞启动 |
+| 能力收敛 | Electron fuses 关闭 `runAsNode`/`NODE_OPTIONS`/CLI inspect/额外 file 权限，开启 Cookie 加密、asar 完整性校验 |
 
 ## 本地开发
 
@@ -108,7 +120,9 @@ WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需�
 
 端到端用例驱动的是真实 Electron 进程：窗口与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、编辑/应用草稿、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成 SQLite 与密钥。
 
-当前基线：**桌面单测 41 项、Electron E2E 7 项、根 Vitest 248 项、后端 Vitest 103 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
+当前基线：**桌面单测 45 项、Electron E2E 11 项、根 Vitest 312 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
+
+E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、经令牌守卫的注册、草稿编辑与应用、未保存标记、菜单指令回传、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成、窗口位置跨重启恢复。
 
 ## 常见问题
 
@@ -119,6 +133,8 @@ WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需�
 | 终端里 Electron 报 `bad option: --remote-debugging-port` | 环境里有 `ELECTRON_RUN_AS_NODE=1`，用 `env -u ELECTRON_RUN_AS_NODE` 启动 |
 | 沙箱/容器内 Chromium 起不来 | 加 `--no-sandbox`（本仓库 E2E 用 `WHATIF_E2E_NO_SANDBOX=1` 控制），生产环境不要关 |
 | 忘记密码 | 本地库单人使用：删掉 `data/whatif.db` 会清空账号与云项目，本地草稿仍保留在渲染进程存储里 |
+| 升级后打不开 | 先看 `data/backups/` 里迁移前的快照，把最新一份复制回 `data/whatif.db` 即可回滚 |
+| `Error loading V8 startup snapshot` | 不要开启 `loadBrowserProcessSpecificV8Snapshot` fuse，它需要配套的自定义快照文件 |
 
 ## 已知边界
 
