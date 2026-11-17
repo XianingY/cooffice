@@ -1,0 +1,83 @@
+appId: com.whatifreport.desktop
+productName: What-if Report
+copyright: Copyright © 2026 What-if Report contributors
+
+directories:
+  output: release
+  # Must not be `build`: that is the staging directory for the runtime payload.
+  buildResources: build-resources
+
+# Only the shell goes into the asar; the renderer and API are unpacked so the
+# native SQLite binary can be loaded from the filesystem.
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+
+extraResources:
+  # One mapping for the whole staging tree: electron-builder always drops a
+  # `node_modules` directory that sits at the root of a `from` path, but keeps
+  # nested ones, so `build/server/node_modules` survives this way.
+  - from: build
+    to: .
+    filter:
+      - "**/*"
+      - "!**/*.map"
+      - "!**/*.md"
+      - "!**/test/**"
+      - "!**/.stamp"
+
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+mac:
+  category: public.app-category.productivity
+  icon: build-resources/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build-resources/entitlements.mac.plist
+  entitlementsInherit: build-resources/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  extendInfo:
+    NSHumanReadableCopyright: Copyright © 2026 What-if Report contributors
+    LSMinimumSystemVersion: "11.0"
+    NSHighResolutionCapable: true
+
+dmg:
+  contents:
+    - x: 140
+      y: 220
+    - x: 420
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  icon: build-resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+linux:
+  icon: build-resources/icon.png
+  category: Office
+  target:
+    - target: AppImage
+      arch: [x64]
+
+# Auto-update metadata is generated for the generic provider; point the app at
+# the same directory through WHATIF_UPDATE_FEED to enable checks.
+publish:
+  provider: generic
+  url: https://example.invalid/what-if-report/releases
