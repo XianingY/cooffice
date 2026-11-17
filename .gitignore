@@ -5,6 +5,8 @@ node_modules/
 dist/
 build/
 out/
+desktop/release/
+desktop/build/
 .vite/
 
 # Test and coverage artifacts
@@ -37,6 +39,11 @@ service-account*.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Packaged artefacts
+*.blockmap
+latest-mac.yml
+latest.yml
 
 # Logs and temporary files
 *.log

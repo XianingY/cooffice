@@ -38,3 +38,36 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node dist/index.js & sleep 2 && curl -sf http://127.0.0.1:3001/health && curl -sf http://127.0.0.1:3001/ready
+
+  desktop:
+    # Electron needs a display server; xvfb provides one for the E2E run.
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-only-secret-value-at-least-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm --prefix server ci
+      - run: npm --prefix desktop ci
+      - name: desktop typecheck and unit tests
+        run: npm run desktop:test
+      - name: build renderer, api and electron main
+        run: |
+          npm run build
+          npm run server:build
+          npm --prefix desktop run build
+      - name: stage runtime payload (native module built for the electron ABI)
+        run: npm --prefix desktop run stage
+      - run: npx playwright install --with-deps chromium
+      - name: electron end-to-end
+        env:
+          WHATIF_E2E_NO_SANDBOX: "1"
+        run: xvfb-run --auto-servernum npx playwright test --config=playwright.desktop.config.ts
