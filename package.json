@@ -1,6 +1,6 @@
 {
   "name": "what-if-report",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -20,7 +20,16 @@
     "dev:full": "concurrently -k -n api,web -c blue,green \"npm:server:dev\" \"npm:dev\"",
     "verify": "npm run typecheck && npm test && npm run test:e2e && npm run build && npm run server:test && npm run server:build",
     "test:e2e:full": "playwright test --config=playwright.fullstack.config.ts",
-    "smoke": "npm run server:build && cd server && bash scripts/smoke.sh"
+    "smoke": "npm run server:build && cd server && bash scripts/smoke.sh",
+    "desktop:install": "npm --prefix desktop install",
+    "desktop:build": "npm --prefix desktop run build",
+    "desktop:stage": "npm run build && npm run server:build && npm --prefix desktop run build && npm --prefix desktop run stage",
+    "desktop:start": "npm --prefix desktop run start",
+    "desktop:dist": "npm run desktop:stage && npm --prefix desktop run dist",
+    "desktop:icons": "node desktop/scripts/make-icons.mjs",
+    "desktop:test": "npm --prefix desktop run typecheck && npm --prefix desktop test",
+    "test:e2e:desktop": "playwright test --config=playwright.desktop.config.ts",
+    "verify:desktop": "npm run desktop:build && npm run desktop:test"
   },
   "dependencies": {
     "docx": "^9.5.1",
