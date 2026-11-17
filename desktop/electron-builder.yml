@@ -33,6 +33,19 @@ asar: true
 asarUnpack:
   - "**/*.node"
 
+# Turn off capabilities a shipped app never needs. runAsNode and the Node CLI
+# flags are the ones attackers reach for first; cookie encryption raises the cost
+# of reading the refresh cookie out of the profile.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  grantFileProtocolExtraPrivileges: false
+  # Requires a signed bundle; electron-builder writes the asar hash into
+  # Info.plist while signing. Unsigned local builds would refuse to start.
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 mac:
   category: public.app-category.productivity
   icon: build-resources/icon.icns
