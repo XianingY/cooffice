@@ -2,14 +2,19 @@
 
 一个**本地优先、可选云端**的全栈工具:导入固定格式的 Excel/CSV,在浏览器中试改数据,查看指标和报告结论的变化,确认后导出新的 Excel 和 Word。登录后可把项目保存到 SQLite 后端,跨设备继续工作;不登录也能完成全部本地功能。
 
-> **项目状态:v1.0.0 稳定版本。** 前端、后端、认证、数据库、API、实时通知、CI 与容器部署均已实现并通过本地与端到端验证。
+> **项目状态:v1.2.0。** 前端、后端、认证、数据库、API、实时通知、CI、容器部署与**桌面应用**均已实现并通过本地、端到端与打包冒烟验证。
 
 ![三栏影响预览:编辑华东当前值后,指标、排名与报告结论同步变化并高亮来源](docs/screenshot.png)
 
 ## 架构
 
 ```text
-浏览器 (React 19 + Vite)
+桌面壳 (Electron)
+   ├── 主进程         内嵌 API、原生菜单/对话框、窗口状态、最近打开、更新检查
+   └── preload        contextBridge 暴露受控的 window.desktop
+        │ 同源 http://127.0.0.1:<port>/
+        ▼
+浏览器 / Electron 渲染进程 (React 19 + Vite)
    ├── src/core        纯 TypeScript 领域逻辑(无 DOM/React/第三方格式依赖)
    ├── src/adapters    xlsx / csv / docx / storage / ai / wps
    ├── src/api         类型化 API 客户端(401 自动刷新、5xx 重试)
@@ -26,6 +31,19 @@ Fastify 5 + SQLite(better-sqlite3, WAL)
 ```
 
 ## 快速开始
+
+### 桌面应用
+
+```bash
+npm --prefix desktop install     # 首次:安装 Electron 与打包工具
+npm run desktop:stage            # 构建前端+后端并按 Electron ABI 安装原生模块
+npm run desktop:start            # 启动应用
+npm run desktop:dist             # 产出 dmg / zip 安装包
+```
+
+不装 Node、不联网也能用:本地功能全部在应用内完成,账号与云项目存在本机 SQLite。详见[桌面应用说明](docs/desktop.md)。
+
+![桌面版主界面](docs/desktop.png)
 
 ### 纯本地模式(零配置)
 
@@ -65,12 +83,14 @@ docker compose up -d --build
 
 ```bash
 npm run typecheck       # 前端类型
-npm test                # 全部 Vitest(前端+后端,224 项)
+npm test                # 全部 Vitest(前端+后端,248 项)
 npm run test:e2e        # 前端浏览器测试(13 项)
 npm run test:e2e:full   # 全栈浏览器测试(真实后端 + SQLite)
 npm run build           # 前端生产构建
 npm run server:build    # 后端编译
 npm run smoke           # 构建并启动后端做端点冒烟
+npm run desktop:test    # 桌面主进程类型检查 + 单测(41 项)
+npm run test:e2e:desktop # 真实 Electron 端到端(7 项)
 npm run verify          # 顺序执行全部门禁
 
 验收基线与覆盖范围见 [验证记录](docs/verification.md)。
@@ -89,9 +109,11 @@ npm run verify          # 顺序执行全部门禁
 | 云端 | 注册/登录、项目保存/打开、草稿与确认分离、实时变更通知 |
 | 安全 | scrypt 密码哈希、JWT 短令牌、刷新令牌哈希与家族轮换、HttpOnly Cookie、RBAC、限流、安全头 |
 | 运维 | 健康检查、OpenAPI/Swagger、结构化日志与请求 ID、审计日志 |
+| 桌面 | Electron 原生窗口与菜单、系统对话框、最近打开、窗口状态记忆、单实例、离线可用、每安装独立密钥 |
 
 ## 文档
 
+- [桌面应用](docs/desktop.md)
 - [用户指南](docs/user-guide.md)
 - [开发指南](docs/development.md)
 - [部署指南](docs/deployment.md)

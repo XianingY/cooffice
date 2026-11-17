@@ -26,6 +26,15 @@
 - `src/modules/<feature>`:每个功能包含 routes(HTTP)→ service(业务规则)→ repository(数据访问)。
 - `src/events`:SSE 事件总线与路由。
 - `src/docs`:OpenAPI 3.1 文档。
+- `src/static`:托管前端产物(深链回退、CSP、assets 长缓存),桌面与单机部署共用。
+- `src/desktop`:桌面嵌入入口(`startEmbeddedServer`)、每安装密钥、空闲端口探测。
+
+桌面壳(`desktop/`):
+
+- `src/main`:主进程(生命周期、窗口、菜单、IPC、安全、日志、最近打开、更新检查)。
+- `src/preload`:沙箱 preload,只暴露白名单 IPC;通道名与 `src/shared/contract.ts` 由测试强制一致。
+- `src/shared`:主进程与 preload 的通道与载荷类型契约。
+- `scripts/`:运行时暂存(`stage.mjs`)、打包(`package.mjs`)、图标生成(`make-icons.mjs`)。
 
 ## 本地命令
 
@@ -48,6 +57,10 @@ npm run test:e2e            # 前端浏览器测试
 npm run test:e2e:full       # 全栈浏览器测试(真实 API + SQLite)
 npm run build               # 前端构建
 npm run server:build        # 后端编译
+npm run desktop:stage       # 构建前端+后端并按 Electron ABI 准备运行时
+npm run desktop:start       # 启动桌面应用
+npm run desktop:test        # 桌面主进程类型检查 + 单测
+npm run test:e2e:desktop    # 真实 Electron 端到端
 npm run verify              # 顺序执行上述全部门禁
 ```
 

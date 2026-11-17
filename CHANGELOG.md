@@ -2,6 +2,39 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.2.0] - 2026-11-17（桌面应用迭代）
+
+### Added
+
+- Electron 桌面应用：主进程内嵌 Fastify 服务，同源托管 React 前端，仅监听 `127.0.0.1` 随机端口。
+- 原生菜单（文件/编辑/视图/窗口/帮助）、系统对话框（打开/保存/导入）、最近打开、窗口状态记忆、单实例。
+- 快捷键 ⌘O 打开、⌘S 就地保存、⌘I 导入、⌘E/⇧⌘E 导出；未应用草稿在关闭按钮上显示圆点。
+- 命令行与 Finder「打开方式」传入 `.json` 时自动载入；站外链接与权限请求一律拦截。
+- 每安装独立 JWT 密钥（0600）、主进程/服务端日志落盘（2 MB 轮转）、页脚数据与日志目录入口。
+- electron-updater 更新检查（`WHATIF_UPDATE_FEED`，仅 https）、electron-builder 打包（dmg/zip/nsis/AppImage）、纯 Node 图标生成脚本。
+- 桌面主进程单测 45 项、真实 Electron 端到端 7 项。
+
+### Changed
+
+- 后端支持 `SERVE_STATIC`/`STATIC_DIR` 托管前端产物（CSP、深链回退、assets 长缓存）与 `LOG_FILE` 落盘日志。
+- 导出统一为「保存 Blob」抽象：桌面走系统保存对话框并提示保存路径，浏览器保持下载行为。
+- 表格导入抽出 `importTabularFile`，文件选择与桌面打开对话框共用同一套校验与列映射。
+- 前端 API 基址支持运行时推导：桌面取页面 origin，浏览器仍由 `VITE_API_BASE_URL` 决定。
+- 版本统一到 1.2.0（根 / 后端 / 桌面），OpenAPI 版本随 manifest 生成。
+
+### Fixed
+
+- `@fastify/static` 十版 `setHeaders` 收到的是 Fastify reply 而非裸 `ServerResponse`，改为使用 reply 头方法。
+- 桌面主进程的 `import()` 被 TypeScript 降级为 `require(file://…)` 导致启动失败，改用具名 `require` 加载 ESM 入口。
+- better-sqlite3 与 Electron ABI 冲突：在隔离的暂存目录执行 `npm ci` + `electron-rebuild`，不再破坏系统 Node 下的后端测试。
+- Vitest 不再收集 `e2e-desktop/`，避免与 Playwright 用例冲突。
+
+### Verified
+
+- 根 Vitest：70 文件 / 293 项通过；后端 Vitest：32 文件 / 103 项通过。
+- 浏览器 E2E 13 项、全栈 E2E 2 项、桌面单测 45 项、Electron E2E 7 项通过。
+- 前端/后端/主进程构建、`npm run smoke`、dmg 与 zip 打包及打包后启动冒烟通过。
+
 ## [1.1.0] - 2026-11-17（全栈化迭代）
 
 ### Added
