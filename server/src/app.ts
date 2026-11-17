@@ -29,6 +29,7 @@ import { registerHealthRoutes } from "./health/routes.js";
 import { registerApiDocs } from "./docs/openapi.js";
 import { EventBus } from "./events/eventBus.js";
 import { registerSseRoutes } from "./events/sseRoutes.js";
+import { registerStaticSpa } from "./static/spa.js";
 
 export interface BuildAppOptions {
   env: Env;
@@ -42,7 +43,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   // correlation ID; disable Fastify's duplicate access log to avoid noise.
   const app = Fastify({ logger: false, bodyLimit: 1_048_576, trustProxy: false });
 
-  registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production");
+  registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production", env.LOG_FILE);
   registerErrorHandler(app);
 
   await registerSecurity(app, env);
@@ -59,8 +60,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   const db = options.db ?? openDatabase(env.DATABASE_PATH);
+  const ownsDatabase = options.db === undefined;
   migrate(db);
-
   const users = new UserRepository(db);
   const refreshTokens = new RefreshTokenRepository(db);
   const audit = new AuditRepository(db);
@@ -95,10 +96,23 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   // Background cleanup is idempotent and independent of request handling.
   const cleanupJob = new RefreshTokenCleanupJob({
     repo: refreshTokens,
-    logger: createLogger(env.LOG_LEVEL, false),
+    logger: createLogger(env.LOG_LEVEL, false, env.LOG_FILE),
   });
   cleanupJob.start();
   app.addHook("onClose", async () => cleanupJob.stop());
+
+  // Desktop and single-binary deployments serve the built SPA from this
+  // server; registered last so every API route wins over the SPA catch-all.
+  if (env.SERVE_STATIC) {
+    await registerStaticSpa(app, { root: env.STATIC_DIR });
+  }
+
+  // Only close a handle we opened; injected test databases stay caller-owned.
+  if (ownsDatabase) {
+    app.addHook("onClose", async () => {
+      db.close();
+    });
+  }
 
   return app;
 }

@@ -11,6 +11,8 @@ const schema = z.object({
   HOST: z.string().min(1).default("127.0.0.1"),
   PORT: positiveInt.default(3001),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  /** Append JSON logs to this file instead of stdout (desktop packaging). */
+  LOG_FILE: z.string().optional(),
 
   JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
   JWT_ACCESS_TTL: z.string().regex(/^\d+[smhd]$/, "JWT_ACCESS_TTL must look like 15m").default("15m"),
@@ -50,5 +52,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   if (parsed.data.NODE_ENV === "production" && parsed.data.JWT_SECRET.startsWith("dev-only")) {
     throw new Error("JWT_SECRET must be changed from the development placeholder in production");
   }
-  return { ...parsed.data, corsOriginList };
+  // An empty string means "log to stdout"; keep the type narrow for consumers.
+  const logFile = parsed.data.LOG_FILE && parsed.data.LOG_FILE.length > 0 ? parsed.data.LOG_FILE : undefined;
+  return { ...parsed.data, LOG_FILE: logFile, corsOriginList };
 }

@@ -17,8 +17,13 @@ export function requestIdHook(request: FastifyRequest, _reply: FastifyReply, don
 }
 
 /** Log request completion once with duration and correlation ID. */
-export function registerRequestLogging(app: FastifyInstance, level: string, pretty: boolean): void {
-  const logger = createLogger(level, pretty);
+export function registerRequestLogging(
+  app: FastifyInstance,
+  level: string,
+  pretty: boolean,
+  destination?: string | null,
+): void {
+  const logger = createLogger(level, pretty, destination);
   app.log = logger as typeof app.log;
   app.addHook("onRequest", requestIdHook);
   app.addHook("onResponse", (request, reply, done) => {
