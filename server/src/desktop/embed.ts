@@ -80,7 +80,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const port = attempt === 0 ? desiredPort : await findFreePort(host);
-    const app = await buildApp({ env: buildEnv(port), apiToken });
+    const app = await buildApp({ env: buildEnv(port), apiToken, backupDir: join(dataDir, "backups") });
     try {
       await app.listen({ host, port });
       return {

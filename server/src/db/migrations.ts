@@ -91,8 +91,7 @@ export const MIGRATIONS: Migration[] = [
   },
 ];
 
-/** Apply pending migrations inside a single transaction; record applied ids. */
-export function migrate(db: Db): number[] {
+function ensureLedger(db: Db): Set<number> {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id INTEGER PRIMARY KEY,
@@ -100,10 +99,23 @@ export function migrate(db: Db): number[] {
       applied_at TEXT NOT NULL
     );
   `);
-  const applied = new Set(
+  return new Set(
     (db.prepare("SELECT id FROM schema_migrations").all() as { id: number }[]).map((row) => row.id),
   );
-  const pending = MIGRATIONS.filter((migration) => !applied.has(migration.id));
+}
+
+/**
+ * Migrations this database still needs. Callers use it to decide whether a
+ * backup is worth taking before touching the schema.
+ */
+export function pendingMigrations(db: Db): Migration[] {
+  const applied = ensureLedger(db);
+  return MIGRATIONS.filter((migration) => !applied.has(migration.id));
+}
+
+/** Apply pending migrations inside a single transaction; record applied ids. */
+export function migrate(db: Db): number[] {
+  const pending = pendingMigrations(db);
   const run = db.transaction(() => {
     for (const migration of pending) {
       db.exec(migration.up);

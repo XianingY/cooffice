@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startEmbeddedServer, type EmbeddedServer } from "../src/desktop/embed.js";
@@ -66,6 +66,21 @@ describe("embedded desktop server", () => {
     if (process.platform !== "win32") {
       expect(statSync(secretPath).mode & 0o777).toBe(0o600);
     }
+  });
+
+  it("snapshots an existing database before a schema upgrade", async () => {
+    // A profile written by an older version: the file exists but has no schema.
+    writeFileSync(join(dataDir, "whatif.db"), "");
+    const first = await boot();
+    expect(existsSync(first.databasePath)).toBe(true);
+    expect(readdirSync(join(dataDir, "backups"))).toHaveLength(1);
+
+    await first.close();
+    servers.length = 0;
+
+    // Nothing pending any more, so a routine launch does not churn backups.
+    await boot();
+    expect(readdirSync(join(dataDir, "backups"))).toHaveLength(1);
   });
 
   it("reuses the installation secret across launches", async () => {

@@ -7,7 +7,9 @@ import type { Env } from "./config/env.js";
 import { registerRequestLogging } from "./middleware/requestContext.js";
 import { registerErrorHandler } from "./middleware/errorHandler.js";
 import { openDatabase, type Db } from "./db/connection.js";
-import { migrate } from "./db/migrations.js";
+import { migrate, pendingMigrations } from "./db/migrations.js";
+import { backupDatabase } from "./db/backup.js";
+import { existsSync } from "node:fs";
 import { UserRepository } from "./modules/auth/userRepository.js";
 import { RefreshTokenRepository } from "./modules/auth/refreshTokenRepository.js";
 import { AuditRepository } from "./modules/audit/auditRepository.js";
@@ -40,6 +42,12 @@ export interface BuildAppOptions {
    * browser deployments leave it undefined and the guard stays uninstalled.
    */
   apiToken?: string;
+  /**
+   * Snapshot the database here before applying pending migrations. Desktop
+   * installs pass their profile directory; server deployments leave it unset
+   * and rely on volume-level backups.
+   */
+  backupDir?: string;
 }
 
 /** Assemble plugins, infrastructure and feature routes into one app instance. */
@@ -68,6 +76,21 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   const db = options.db ?? openDatabase(env.DATABASE_PATH);
   const ownsDatabase = options.db === undefined;
+
+  // An upgrade that rewrites the schema without a way back is the one failure a
+  // single-user desktop install cannot recover from.
+  if (options.backupDir && env.DATABASE_PATH !== ":memory:" && existsSync(env.DATABASE_PATH)) {
+    const pending = pendingMigrations(db);
+    if (pending.length > 0) {
+      try {
+        const snapshot = await backupDatabase(db, options.backupDir);
+        app.log.info({ file: snapshot.filePath, bytes: snapshot.bytes, pending: pending.length }, "database snapshot taken");
+      } catch (error) {
+        app.log.warn({ err: error }, "database snapshot failed; continuing with migrations");
+      }
+    }
+  }
+
   migrate(db);
   const users = new UserRepository(db);
   const refreshTokens = new RefreshTokenRepository(db);
