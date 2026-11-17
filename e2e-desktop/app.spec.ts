@@ -92,6 +92,27 @@ test("edits and applies a draft through the real renderer", async () => {
   await expect(east).toHaveValue("90");
 });
 
+test("marks the window as edited while a draft is pending", async () => {
+  await page.getByLabel("华东当前销售额").fill("95");
+  const edited = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isDocumentEdited());
+  // macOS shows the dot; other platforms report false and the IPC is a no-op.
+  if (process.platform === "darwin") expect(edited).toBe(true);
+
+  await page.getByRole("button", { name: "撤销草稿" }).click();
+  const cleared = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isDocumentEdited());
+  expect(cleared).toBe(false);
+});
+
+test("forwards native menu commands to the renderer", async () => {
+  // Same channel the File ▸ 清除本地项目 item uses.
+  await app.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows()[0].webContents.send("desktop:menu-action", { action: "clear-project" });
+  });
+  await expect(page.getByRole("button", { name: "确认清除" })).toBeVisible();
+  await page.getByRole("button", { name: "取消" }).click();
+  await expect(page.getByRole("button", { name: "确认清除" })).toHaveCount(0);
+});
+
 test("writes exports through the IPC filesystem path", async () => {
   const target = join(userDataDir, "export-check.json");
   const saved = await page.evaluate(async (filePath) => {
@@ -121,4 +142,37 @@ test("persists the desktop profile on disk", async () => {
   expect(existsSync(join(dataDir, "whatif.db"))).toBe(true);
   expect(existsSync(join(dataDir, "jwt-secret.key"))).toBe(true);
   expect(existsSync(join(userDataDir, "logs", "main.log"))).toBe(true);
+});
+
+test("persists window bounds and restores them on the next launch", async () => {
+  const bounds = { x: 90, y: 90, width: 1100, height: 760 };
+  await app.evaluate(({ BrowserWindow }, value) => {
+    BrowserWindow.getAllWindows()[0].setBounds(value);
+  }, bounds);
+  // The main process debounces writes by 400 ms.
+  await page.waitForTimeout(800);
+
+  const stateFile = join(userDataDir, "state", "window-state.json");
+  expect(JSON.parse(readFileSync(stateFile, "utf8"))).toMatchObject({
+    width: bounds.width,
+    height: bounds.height,
+  });
+
+  await app.close();
+
+  const { ELECTRON_RUN_AS_NODE: _ignored, ...baseEnv } = process.env;
+  const relaunched = await electron.launch({
+    executablePath: electronExecutable(),
+    args: process.env.WHATIF_E2E_NO_SANDBOX === "1" ? [desktopDir, "--no-sandbox"] : [desktopDir],
+    env: { ...baseEnv, NODE_ENV: "production", WHATIF_USER_DATA_DIR: userDataDir },
+  });
+  try {
+    await relaunched.firstWindow();
+    const restored = await relaunched.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].getBounds(),
+    );
+    expect(restored).toMatchObject({ width: bounds.width, height: bounds.height });
+  } finally {
+    await relaunched.close();
+  }
 });

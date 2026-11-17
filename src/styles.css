@@ -547,7 +547,11 @@ body {
   z-index: 100;
   /* Standing in for the hidden title bar, so the window stays draggable. */
   -webkit-app-region: drag;
-  background: var(--bg);
+  /* Translucent so content scrolling underneath is visible, not chopped off. */
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
 /* Room for the traffic lights and the drag strip. */
