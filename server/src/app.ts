@@ -30,10 +30,16 @@ import { registerApiDocs } from "./docs/openapi.js";
 import { EventBus } from "./events/eventBus.js";
 import { registerSseRoutes } from "./events/sseRoutes.js";
 import { registerStaticSpa } from "./static/spa.js";
+import { registerSessionGuard } from "./middleware/sessionGuard.js";
 
 export interface BuildAppOptions {
   env: Env;
   db?: Db;
+  /**
+   * Per-launch token required on `/api/*`. Only the desktop shell sets this;
+   * browser deployments leave it undefined and the guard stays uninstalled.
+   */
+  apiToken?: string;
 }
 
 /** Assemble plugins, infrastructure and feature routes into one app instance. */
@@ -45,6 +51,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production", env.LOG_FILE);
   registerErrorHandler(app);
+  registerSessionGuard(app, options.apiToken);
 
   await registerSecurity(app, env);
   await app.register(cookie);

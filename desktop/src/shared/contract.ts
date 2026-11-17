@@ -18,6 +18,7 @@ export const IPC = {
   openDataDir: "desktop:open-data-dir",
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
+  sessionToken: "desktop:session-token",
   log: "desktop:log",
 } as const;
 

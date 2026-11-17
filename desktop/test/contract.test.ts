@@ -23,7 +23,14 @@ describe("preload/main contract", () => {
   });
 
   it("exposes one bridge method per capability", () => {
-    for (const method of ["saveFile", "openProject", "openSpreadsheet", "revealPath", "onMenuAction"]) {
+    for (const method of [
+      "saveFile",
+      "openProject",
+      "openSpreadsheet",
+      "revealPath",
+      "getSessionToken",
+      "onMenuAction",
+    ]) {
       expect(source).toContain(`${method}:`);
     }
     expect(source).toContain("contextBridge.exposeInMainWorld(\"desktop\"");

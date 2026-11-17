@@ -68,6 +68,18 @@ test("serves cloud features from the embedded server on the app origin", async (
   expect(origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
 });
 
+test("registers an account through the guarded embedded API", async () => {
+  // Proves the renderer received the per-launch session token: without it the
+  // API answers 401 before authentication is even considered.
+  await page.getByRole("button", { name: "没有账号?去注册" }).click();
+  await page.getByLabel("显示名称").fill("桌面测试");
+  await page.getByLabel("邮箱").fill("desktop-e2e@test.dev");
+  await page.getByLabel("密码").fill("password123");
+  await page.getByRole("button", { name: "注册" }).click();
+
+  await expect(page.getByText("已登录为 desktop-e2e@test.dev")).toBeVisible();
+});
+
 test("edits and applies a draft through the real renderer", async () => {
   const east = page.getByLabel("华东当前销售额");
   await east.fill("90");

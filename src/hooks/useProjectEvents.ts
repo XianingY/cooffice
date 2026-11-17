@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { tokenStore } from "../auth/tokenStore";
+import { sessionHeaders } from "../desktop/bridge";
 
 /**
  * Subscribe to server-sent project changes using fetch streaming, which (unlike
@@ -24,7 +25,7 @@ export function useProjectEvents(projectId: string | null, onEvent: () => void) 
       controller = new AbortController();
       try {
         const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/events`, {
-          headers: { Authorization: `Bearer ${tokenStore.get() ?? token}` },
+          headers: { Authorization: `Bearer ${tokenStore.get() ?? token}`, ...sessionHeaders() },
           signal: controller.signal,
           credentials: "include",
         });

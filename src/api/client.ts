@@ -3,6 +3,8 @@ import { ApiError, networkError } from "./errors";
 export interface ApiClientOptions {
   baseUrl: string;
   getAccessToken(): string | null;
+  /** Extra headers required by the desktop shell (empty in the browser). */
+  getSessionHeaders?(): Record<string, string>;
   onUnauthorized(): Promise<boolean>;
   fetchImpl?: typeof fetch;
   maxRetries?: number;
@@ -69,6 +71,9 @@ export class ApiClient {
     if (hasBody && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
     const token = this.options.getAccessToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
+    for (const [name, value] of Object.entries(this.options.getSessionHeaders?.() ?? {})) {
+      headers.set(name, value);
+    }
     return headers;
   }
 

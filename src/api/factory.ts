@@ -1,6 +1,7 @@
 import { ApiClient } from "./client";
 import { createApi, type Api } from "./endpoints";
 import { tokenStore } from "../auth/tokenStore";
+import { sessionHeaders } from "../desktop/bridge";
 
 /**
  * Compose the API client at module scope so all components share one instance.
@@ -31,6 +32,7 @@ const baseUrl = runtimeBase || configuredBase;
 const client = new ApiClient({
   baseUrl,
   getAccessToken: () => tokenStore.get(),
+  getSessionHeaders: sessionHeaders,
   onUnauthorized: () => refreshHandler(),
 });
 

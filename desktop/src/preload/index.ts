@@ -20,6 +20,7 @@ const CHANNELS = {
   openDataDir: "desktop:open-data-dir",
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
+  sessionToken: "desktop:session-token",
   log: "desktop:log",
 } as const;
 
@@ -49,6 +50,15 @@ export const desktopApi = {
   appInfo: () => ipcRenderer.invoke(CHANNELS.appInfo),
   checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
   openExternal: (url: string) => ipcRenderer.invoke(CHANNELS.openExternal, url),
+  /**
+   * Per-launch token the API requires on every request. Fetched synchronously
+   * once so the first API call already carries it.
+   */
+  getSessionToken: (): string => {
+    const token = ipcRenderer.sendSync(CHANNELS.sessionToken) as unknown;
+    return typeof token === "string" ? token : "";
+  },
+
   openDataDir: () => ipcRenderer.invoke(CHANNELS.openDataDir),
   openLogsDir: () => ipcRenderer.invoke(CHANNELS.openLogsDir),
   log: (level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>) =>

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { FastifyInstance } from "fastify";
@@ -27,6 +28,8 @@ export interface EmbeddedServer {
   databasePath: string;
   /** True when this launch generated the installation secret. */
   secretCreated: boolean;
+  /** Token the renderer must send as `x-whatif-session` on every API call. */
+  apiToken: string;
   app: FastifyInstance;
   close(): Promise<void>;
 }
@@ -49,6 +52,8 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
   const { secret, created } = loadOrCreateSecret(join(dataDir, "jwt-secret.key"));
 
   const desiredPort = options.port && options.port > 0 ? options.port : await findFreePort(host);
+  // Fresh on every launch: a stale token from a previous run must not work.
+  const apiToken = randomBytes(32).toString("base64url");
 
   const buildEnv = (port: number) =>
     loadEnv({
@@ -75,7 +80,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const port = attempt === 0 ? desiredPort : await findFreePort(host);
-    const app = await buildApp({ env: buildEnv(port) });
+    const app = await buildApp({ env: buildEnv(port), apiToken });
     try {
       await app.listen({ host, port });
       return {
@@ -84,6 +89,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
         port,
         databasePath,
         secretCreated: created,
+        apiToken,
         app,
         close: async () => {
           await app.close();

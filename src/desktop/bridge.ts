@@ -67,6 +67,7 @@ export interface DesktopBridge {
   appInfo(): Promise<AppInfo>;
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): Promise<boolean>;
+  getSessionToken(): string;
   openDataDir(): Promise<string>;
   openLogsDir(): Promise<string>;
   log(level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>): void;
@@ -119,6 +120,16 @@ export function applyDesktopShellChrome(): void {
   if (!bridge || typeof document === "undefined") return;
   document.documentElement.dataset.desktop = "true";
   document.documentElement.dataset.platform = bridge.platform;
+}
+
+/**
+ * Headers the embedded API requires alongside the bearer token. Empty in the
+ * browser build, where no per-launch token exists.
+ */
+export function sessionHeaders(): Record<string, string> {
+  const bridge = getDesktop();
+  const token = bridge?.getSessionToken?.() ?? "";
+  return token ? { "x-whatif-session": token } : {};
 }
 
 export function toBytes(blob: Blob): Promise<Uint8Array> {

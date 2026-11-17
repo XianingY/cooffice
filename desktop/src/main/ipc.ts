@@ -22,6 +22,7 @@ export interface IpcDeps {
   logger: ShellLogger;
   getWindow(): BrowserWindow | null;
   getOrigin(): string;
+  getSessionToken(): string;
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): void;
 }
@@ -214,6 +215,11 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     if (typeof url !== "string" || !isExternalUrlAllowed(url)) return false;
     deps.openExternal(url);
     return true;
+  });
+
+  // Synchronous on purpose: the renderer needs the token before its first call.
+  ipcMain.on(IPC.sessionToken, (event) => {
+    event.returnValue = deps.getSessionToken();
   });
 
   ipcMain.handle(IPC.openDataDir, () => shell.openPath(deps.paths.dataDir));

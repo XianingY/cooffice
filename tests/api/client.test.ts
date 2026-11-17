@@ -14,6 +14,29 @@ function makeClient(fetchImpl: typeof fetch, getToken = () => "tok", onUnauthori
 }
 
 describe("ApiClient", () => {
+  it("attaches the desktop session header next to the bearer token", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(json({ ok: true }));
+    const client = new ApiClient({
+      baseUrl: "",
+      getAccessToken: () => "tok",
+      getSessionHeaders: () => ({ "x-whatif-session": "session-token" }),
+      onUnauthorized: async () => false,
+      fetchImpl,
+    });
+    await client.request("/api/projects");
+
+    const headers = fetchImpl.mock.calls[0][1].headers as Headers;
+    expect(headers.get("x-whatif-session")).toBe("session-token");
+    expect(headers.get("Authorization")).toBe("Bearer tok");
+  });
+
+  it("sends no session header in the browser build", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(json({ ok: true }));
+    await makeClient(fetchImpl).request("/api/projects");
+    const headers = fetchImpl.mock.calls[0][1].headers as Headers;
+    expect(headers.has("x-whatif-session")).toBe(false);
+  });
+
   it("adds bearer token and returns parsed JSON", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(json({ ok: true }));
     const result = await makeClient(fetchImpl).request<{ ok: boolean }>("/api/projects");

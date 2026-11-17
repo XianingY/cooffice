@@ -24,6 +24,7 @@ if (userDataOverride) app.setPath("userData", resolve(userDataOverride));
 interface EmbeddedServerHandle {
   origin: string;
   port: number;
+  apiToken: string;
   close(): Promise<void>;
 }
 
@@ -170,6 +171,7 @@ async function bootstrap(): Promise<void> {
     logger: log(),
     getWindow: () => mainWindow,
     getOrigin: () => origin,
+    getSessionToken: () => embedded?.apiToken ?? "",
     checkForUpdates,
     openExternal,
   });

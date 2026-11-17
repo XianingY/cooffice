@@ -79,11 +79,27 @@ describe("embedded desktop server", () => {
     expect(readFileSync(join(dataDir, "jwt-secret.key"), "utf8").trim()).toBe(secret);
   });
 
+  it("guards the API with a per-launch token", async () => {
+    const server = await boot();
+    expect(server.apiToken).toMatch(/^[\w-]{43}$/);
+
+    const blocked = await fetch(`${server.origin}/api/auth/me`);
+    expect(blocked.status).toBe(401);
+    expect(((await blocked.json()) as { error: { message: string } }).error.message).toContain("Desktop session token");
+
+    const allowed = await fetch(`${server.origin}/api/auth/me`, {
+      headers: { "x-whatif-session": server.apiToken },
+    });
+    expect(((await allowed.json()) as { error: { message: string } }).error.message).not.toContain(
+      "Desktop session token",
+    );
+  });
+
   it("persists accounts in the desktop database across restarts", async () => {
     const first = await boot();
     const registered = await fetch(`${first.origin}/api/auth/register`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-whatif-session": first.apiToken },
       body: JSON.stringify({ email: "desk@test.dev", password: "password123", displayName: "Desk" }),
     });
     expect(registered.status).toBe(200);
@@ -93,7 +109,7 @@ describe("embedded desktop server", () => {
     const second = await boot();
     const login = await fetch(`${second.origin}/api/auth/login`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-whatif-session": second.apiToken },
       body: JSON.stringify({ email: "desk@test.dev", password: "password123" }),
     });
     expect(login.status).toBe(200);
