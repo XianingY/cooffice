@@ -28,6 +28,11 @@ extraResources:
       - "!**/tests/**"
       - "!**/*.test.ts"
       - "!**/.stamp"
+      # Development-only trees inside published packages.
+      - "!**/benchmark/**"
+      - "!**/benchmarks/**"
+      - "!**/examples/**"
+      - "!**/coverage/**"
 
 asar: true
 asarUnpack:
