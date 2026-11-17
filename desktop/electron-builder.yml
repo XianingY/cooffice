@@ -25,6 +25,8 @@ extraResources:
       - "!**/*.map"
       - "!**/*.md"
       - "!**/test/**"
+      - "!**/tests/**"
+      - "!**/*.test.ts"
       - "!**/.stamp"
 
 asar: true
