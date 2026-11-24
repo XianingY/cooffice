@@ -15,6 +15,7 @@ npm run test:e2e:desktop # 真实 Electron 端到端(受限环境加 WHATIF_E2E_
 
 | 检查 | 结果 |
 |---|---|
+| `gitleaks detect --log-opts=--all`(全历史) | 0 项；14 条合成测试值按指纹列入 `.gitleaksignore` |
 | `npm run typecheck` | 通过 |
 | `npm test`(根 Vitest,含前端/后端/桌面) | 76 文件 / 329 项通过 |
 | `npm run server:test`(后端 Vitest) | 35 文件 / 120 项通过 |

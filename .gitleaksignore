@@ -1,0 +1,28 @@
+# Gitleaks fingerprint baseline (gitleaks 8.30.1, verified 2026-11-24).
+#
+# Every entry below is a SYNTHETIC test fixture, not a credential:
+#   - "integration-secret-long-enough-for-hs256" is a deliberately weak JWT
+#     signing string used by server integration tests.
+#   - "test-secret-that-is-long-enough-for-hs256-signing" is the same for the
+#     token unit tests.
+# They cannot authenticate against any real deployment; production requires a
+# randomly generated JWT_SECRET supplied through the environment.
+#
+# GitHub Secret Scanning reports 0 alerts for this repository. This baseline
+# exists so the CI full-history scan stays actionable: any NEW finding fails.
+# Re-verify with: gitleaks detect --log-opts=--all --no-banner
+
+58c34e0e8597a2ea7181329477b87277dbeb4915:server/test/sessionGuard.test.ts:generic-api-key:14
+103c4805b658aed9bd9397e856c6ccfd71b80d82:server/test/malformedJson.test.ts:generic-api-key:9
+c617ee02fa27348c2f57afd68d5da3d5157b852f:server/test/rateLimit.test.ts:generic-api-key:9
+1f74f5e13c07682b66868ea9c35e8ee18d90093e:server/test/bodyLimit.test.ts:generic-api-key:9
+f84245f2c92cfc85430f1c3e64c39e54f429d42a:server/test/staticSpa.test.ts:generic-api-key:27
+e24ae769fa7af6a52338123c1439bfd9339f2a2a:server/test/security.test.ts:generic-api-key:9
+29166ae8ca42ddd6d6dcd023163072017ae3715f:server/test/projectFileRoutes.test.ts:generic-api-key:10
+6d771bef1a3bdac481a1f651f58a6462857fbbdf:server/test/auditRoutes.test.ts:generic-api-key:9
+4936aceae3eaa3adaa16c9d075b9b653b1e66ce9:server/test/sseIntegration.test.ts:generic-api-key:10
+28e2c377512e74f342746ba919d543625122d5a2:server/test/openapi.test.ts:generic-api-key:9
+a6703294af8d2ca57b06507df95e6accc1a770f2:server/test/projectRoutes.test.ts:generic-api-key:9
+bd25dde378245b2bc17da37681168f5101a5bf83:server/test/app.test.ts:generic-api-key:12
+9080226f9fe2ff899c4af7031f02e5d5ccce022e:server/test/reportRoutes.test.ts:generic-api-key:9
+47bdf017d992831530b8ce9025d114ad8ac44a99:server/test/tokens.test.ts:generic-api-key:4
