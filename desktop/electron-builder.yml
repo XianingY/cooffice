@@ -34,6 +34,17 @@ extraResources:
       - "!**/examples/**"
       - "!**/coverage/**"
 
+# Double-clicking a .json project launches the app with that document already
+# loaded. The main process already handles both argv (Windows/Linux) and the
+# macOS `open-file` event. Linux AppImage cannot register associations; users
+# there can still set a default application for the MIME type themselves.
+fileAssociations:
+  - ext: json
+    name: What-if Report 项目
+    description: What-if Report 项目文件（基线数据与草稿）
+    role: Editor
+    rank: Default
+
 asar: true
 asarUnpack:
   - "**/*.node"
@@ -85,7 +96,10 @@ win:
 
 nsis:
   oneClick: false
-  perMachine: false
+  # NSIS only writes the .json registry association for per-machine installs.
+  # This requires elevation and installs under Program Files; per-user installs
+  # deliberately do not take over a system-wide file type.
+  perMachine: true
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
 
