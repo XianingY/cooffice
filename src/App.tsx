@@ -42,6 +42,7 @@ import {
   trackDocument,
   type SaveBlobOutcome,
 } from "./desktop/bridge";
+import { useFileDrop } from "./hooks/useFileDrop";
 import { salesDemo } from "./fixtures/salesDemo";
 import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
 import { currentTheme, initTheme, setTheme, subscribeTheme } from "./theme";
@@ -240,6 +241,28 @@ export default function App() {
     }
   };
 
+  /**
+   * One importer for the file input and for drops. Desktop drops arrive as
+   * bytes read by the main process, so both routes reduce to a File here.
+   */
+  const importDroppedFile = async (file: File) => {
+    try {
+      if (file.name.toLowerCase().endsWith(".json")) {
+        const document = await readProjectFile(file);
+        dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
+        setReportConfig(normaliseReportConfig(document.config));
+        setImportError("");
+        return;
+      }
+      const imported = await importTabularFile(file);
+      setImportError("");
+      if (imported.kind === "csv") setPendingCsv({ input: imported.input, suggested: imported.suggested });
+      else dispatch({ type: "import", data: imported.data });
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "文件导入失败，请检查文件后重试");
+    }
+  };
+
   /** Apply a project document that already arrived as text (desktop shell). */
   const applyProjectDocument = (text: string, filePath: string | null) => {
     try {
@@ -253,20 +276,7 @@ export default function App() {
     }
   };
 
-  const handleImportProject = async (file: File) => {
-    try {
-      const document = await readProjectFile(file);
-      setImportError("");
-      dispatch({
-        type: "importDocument",
-        baseline: document.baseline,
-        draft: document.draft,
-      });
-      setReportConfig(normaliseReportConfig(document.config));
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : "项目文件导入失败");
-    }
-  };
+  const handleImportProject = (file: File) => void importDroppedFile(file);
 
   const openProjectFromDisk = async () => {
     if (!desktop) return;
@@ -387,10 +397,20 @@ export default function App() {
     });
   }, [desktop]);
 
+  const draggingFile = useFileDrop({
+    onFile: (file) => void importDroppedFile(file),
+    onError: setImportError,
+  });
+
   return (
     <main className="app">
       {/* Draggable strip standing in for the hidden title bar (desktop only). */}
       <div className="desktop-shell-strip" aria-hidden="true" />
+      {draggingFile ? (
+        <div className="drop-overlay" role="status" aria-live="polite">
+          松开以导入项目或表格文件
+        </div>
+      ) : null}
 
       <header className="app-header">
         <h1>What-if Report · 数据沙盘</h1>

@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -153,6 +153,45 @@ test("keeps data across a window reload", async () => {
   await page.reload();
   await page.waitForLoadState("domcontentloaded");
   await expect(page.getByLabel("华东当前销售额")).toHaveValue("90");
+});
+
+test("imports a project dropped onto the window", async () => {
+  const stored = await page.evaluate(() => localStorage.getItem("what-if-report:project:v1"));
+  expect(stored).not.toBeNull();
+  const document = JSON.parse(stored!) as {
+    baseline: { regions: { current: number }[] };
+    draft: { regions: { current: number }[] };
+  };
+  document.baseline.regions[0].current = 77;
+  document.draft.regions[0].current = 77;
+  const target = join(userDataDir, "dropped-project.json");
+  writeFileSync(target, JSON.stringify(document));
+
+  await page.evaluate((filePath) => {
+    const file = new File(["project"], "dropped-project.json", { type: "application/json" });
+    Object.defineProperty(file, "path", { value: filePath });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    window.dispatchEvent(new DragEvent("dragenter", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+    window.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  }, target);
+
+  await expect(page.getByLabel("华东当前销售额")).toHaveValue("77");
+});
+
+test("rejects an unsupported dropped file without changing the document", async () => {
+  const target = join(userDataDir, "notes.txt");
+  writeFileSync(target, "not a spreadsheet");
+  await page.evaluate((filePath) => {
+    const file = new File(["notes"], "notes.txt", { type: "text/plain" });
+    Object.defineProperty(file, "path", { value: filePath });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    window.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
+  }, target);
+
+  await expect(page.getByText("只支持 .json 项目文件或 .xlsx/.xls/.csv 表格")).toBeVisible();
+  await expect(page.getByLabel("华东当前销售额")).toHaveValue("77");
 });
 
 test("persists the desktop profile on disk", async () => {

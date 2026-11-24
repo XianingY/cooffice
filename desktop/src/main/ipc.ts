@@ -3,6 +3,7 @@ import { statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import type {
   AppInfo,
+  DroppedFileResult,
   OpenProjectResult,
   OpenSpreadsheetResult,
   SaveFileRequest,
@@ -12,7 +13,14 @@ import type {
   UpdateCheckResult,
 } from "../shared/contract.js";
 import { IPC } from "../shared/contract.js";
-import { readProjectFile, readSpreadsheetFile, writeFileBytes, PROJECT_EXTENSIONS, SPREADSHEET_EXTENSIONS } from "./fileAccess.js";
+import {
+  classifyFile,
+  readProjectFile,
+  readSpreadsheetFile,
+  writeFileBytes,
+  PROJECT_EXTENSIONS,
+  SPREADSHEET_EXTENSIONS,
+} from "./fileAccess.js";
 import { normaliseTheme } from "./theme.js";
 import type { RecentFilesStore } from "./recentFiles.js";
 import type { ShellLogger } from "./logger.js";
@@ -163,6 +171,31 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       const message = error instanceof Error ? error.message : "无法读取表格文件";
       logger.warn("spreadsheet open failed", { filePath, message });
       return { canceled: true, filePath, error: message };
+    }
+  });
+
+  /**
+   * Native drops carry a path, not bytes. Reuse the dialog readers so a drop
+   * cannot bypass extension, size or regular-file checks.
+   */
+  ipcMain.handle(IPC.openDroppedFile, async (_event, filePath: unknown): Promise<DroppedFileResult> => {
+    if (typeof filePath !== "string" || filePath.length === 0) {
+      return { kind: "unsupported", canceled: true, error: "拖入的路径无效" };
+    }
+    const kind = classifyFile(filePath);
+    if (!kind) {
+      logger.warn("dropped file ignored", { filePath });
+      return { kind: "unsupported", canceled: true, error: "只支持 .json 项目文件或 .xlsx/.xls/.csv 表格" };
+    }
+    try {
+      const payload = kind === "project" ? readProjectFile(filePath) : readSpreadsheetFile(filePath);
+      if (kind === "project") deps.recent.add(filePath);
+      logger.info("file dropped", { filePath, kind, bytes: payload.bytes.byteLength });
+      return { kind, canceled: false, filePath, name: payload.name, bytes: payload.bytes };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "无法读取拖入的文件";
+      logger.warn("dropped file rejected", { filePath, message });
+      return { kind, canceled: true, error: message };
     }
   });
 

@@ -15,6 +15,16 @@ export interface FilePayload {
   bytes: Uint8Array;
 }
 
+export type DroppedFileKind = "project" | "spreadsheet" | null;
+
+/** Extension-only classification; size and file type still go through read*. */
+export function classifyFile(filePath: string): DroppedFileKind {
+  const extension = extname(filePath).slice(1).toLowerCase();
+  if (PROJECT_EXTENSIONS.includes(extension)) return "project";
+  if (SPREADSHEET_EXTENSIONS.includes(extension)) return "spreadsheet";
+  return null;
+}
+
 function assertReadable(filePath: string, maxBytes: number, allowed: string[]): void {
   const extension = extname(filePath).slice(1).toLowerCase();
   if (!allowed.includes(extension)) {

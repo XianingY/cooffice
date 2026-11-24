@@ -88,6 +88,13 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     return { action: "deny" };
   });
   window.webContents.on("will-navigate", (event, url) => {
+    // Dropping a file otherwise navigates the renderer to file://. The drop
+    // bridge reads it through validated IPC instead, so swallow that jump
+    // rather than handing a local path to the system browser.
+    if (url.startsWith("file:") || url.startsWith("data:")) {
+      event.preventDefault();
+      return;
+    }
     if (!url.startsWith(options.origin)) {
       event.preventDefault();
       options.openExternal(url);

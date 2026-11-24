@@ -10,6 +10,7 @@ const CHANNELS = {
   saveFile: "desktop:save-file",
   openProject: "desktop:open-project",
   openSpreadsheet: "desktop:open-spreadsheet",
+  openDroppedFile: "desktop:open-dropped-file",
   revealPath: "desktop:reveal-path",
   setDirty: "desktop:set-dirty",
   setCurrentFile: "desktop:set-current-file",
@@ -42,6 +43,7 @@ export const desktopApi = {
 
   openProject: () => ipcRenderer.invoke(CHANNELS.openProject),
   openSpreadsheet: () => ipcRenderer.invoke(CHANNELS.openSpreadsheet),
+  openDroppedFile: (filePath: string) => ipcRenderer.invoke(CHANNELS.openDroppedFile, filePath),
   openRecent: (filePath: string) => ipcRenderer.invoke(CHANNELS.openRecent, filePath),
   recentFiles: () => ipcRenderer.invoke(CHANNELS.recentFiles),
   revealPath: (filePath: string) => ipcRenderer.invoke(CHANNELS.revealPath, filePath),

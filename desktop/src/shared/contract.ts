@@ -8,6 +8,7 @@ export const IPC = {
   saveFile: "desktop:save-file",
   openProject: "desktop:open-project",
   openSpreadsheet: "desktop:open-spreadsheet",
+  openDroppedFile: "desktop:open-dropped-file",
   revealPath: "desktop:reveal-path",
   setDirty: "desktop:set-dirty",
   setCurrentFile: "desktop:set-current-file",
@@ -75,6 +76,19 @@ export interface OpenProjectResult {
 }
 
 export interface OpenSpreadsheetResult {
+  canceled: boolean;
+  filePath?: string;
+  name?: string;
+  bytes?: Uint8Array;
+  error?: string;
+}
+
+/**
+ * A file dragged onto the window, read by the main process so the renderer
+ * never gains a general-purpose filesystem API.
+ */
+export interface DroppedFileResult {
+  kind: "project" | "spreadsheet" | "unsupported";
   canceled: boolean;
   filePath?: string;
   name?: string;

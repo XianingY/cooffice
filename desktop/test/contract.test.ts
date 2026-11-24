@@ -27,6 +27,7 @@ describe("preload/main contract", () => {
       "saveFile",
       "openProject",
       "openSpreadsheet",
+      "openDroppedFile",
       "revealPath",
       "getSessionToken",
       "getTheme",

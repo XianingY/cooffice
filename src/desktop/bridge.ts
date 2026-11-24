@@ -29,6 +29,15 @@ export interface OpenDocumentResult {
   error?: string;
 }
 
+export interface DroppedFileResult {
+  kind: "project" | "spreadsheet" | "unsupported";
+  canceled: boolean;
+  filePath?: string;
+  name?: string;
+  bytes?: Uint8Array;
+  error?: string;
+}
+
 export interface AppInfo {
   appName: string;
   version: string;
@@ -67,6 +76,7 @@ export interface DesktopBridge {
   saveFile(request: SaveFileRequest): Promise<SaveFileResult>;
   openProject(): Promise<OpenDocumentResult>;
   openSpreadsheet(): Promise<OpenDocumentResult>;
+  openDroppedFile(filePath: string): Promise<DroppedFileResult>;
   openRecent(filePath: string): Promise<OpenDocumentResult>;
   recentFiles(): Promise<string[]>;
   revealPath(filePath: string): Promise<boolean>;
@@ -195,6 +205,12 @@ export async function saveBlob(blob: Blob, options: SaveBlobOptions): Promise<Sa
 /** Build a `File` from an Electron-provided payload so adapters stay unchanged. */
 export function toFile(name: string, bytes: Uint8Array): File {
   return new File([new Uint8Array(bytes)], name);
+}
+
+/** Electron adds an absolute path to files that came from a native drag. */
+export function filePathOf(file: File): string | null {
+  const path = (file as File & { path?: unknown }).path;
+  return typeof path === "string" && path.length > 0 ? path : null;
 }
 
 /** Human-readable location for "saved to …" notices. */

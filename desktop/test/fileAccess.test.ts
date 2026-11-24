@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   MAX_PROJECT_BYTES,
+  classifyFile,
   readProjectFile,
   readSpreadsheetFile,
   writeFileBytes,
@@ -52,6 +53,15 @@ describe("file access", () => {
     const file = join(dir, "report.pdf");
     writeFileSync(file, "data");
     expect(() => readSpreadsheetFile(file)).toThrow(/不支持的文件类型/);
+  });
+
+  it("classifies dropped files case-insensitively and rejects the rest", () => {
+    expect(classifyFile("/tmp/project.JSON")).toBe("project");
+    expect(classifyFile("/tmp/book.XLSX")).toBe("spreadsheet");
+    expect(classifyFile("/tmp/old.xls")).toBe("spreadsheet");
+    expect(classifyFile("/tmp/export.csv")).toBe("spreadsheet");
+    expect(classifyFile("/tmp/report.pdf")).toBeNull();
+    expect(classifyFile("/tmp/no-extension")).toBeNull();
   });
 
   it("writes renderer bytes verbatim", () => {
