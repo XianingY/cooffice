@@ -7,9 +7,42 @@
   --text: #1c2b3a;
   --muted: #5c6b7a;
   --accent: #1f6feb;
+  --on-accent: #ffffff;
   --highlight: #fff3bf;
   --highlight-border: #d9a400;
   --danger: #b42318;
+  --on-danger: #ffffff;
+  --danger-bg: #fdecea;
+  --danger-border: #f3c2bd;
+  --notice-bg: #eef4ff;
+  --notice-text: #1c4fa1;
+  --notice-border: #c7d9ff;
+  --accent-soft: #f4f8ff;
+  --track: #e9eef5;
+}
+
+/* Desktop menu "视图 › 外观" and the toolbar button both land here. The shell
+   sets data-theme before first paint; the browser controller sets it too. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111827;
+  --panel: #1b2433;
+  --border: #334155;
+  --text: #e5edf7;
+  --muted: #9fb0c3;
+  --accent: #7db1ff;
+  --on-accent: #0b1220;
+  --highlight: #4a3b12;
+  --highlight-border: #d9a400;
+  --danger: #ff9b91;
+  --on-danger: #2a0d0a;
+  --danger-bg: #3a1d1a;
+  --danger-border: #6e2f28;
+  --notice-bg: #142b4d;
+  --notice-text: #c9dcff;
+  --notice-border: #2b4a76;
+  --accent-soft: #1b3050;
+  --track: #263449;
 }
 
 * {
@@ -116,13 +149,13 @@ body {
 .toolbar button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .dialog-actions button.danger {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
 }
 
 .visually-hidden-input {
@@ -183,9 +216,9 @@ body {
 }
 
 .status-error {
-  background: #fdecea;
+  background: var(--danger-bg);
   color: var(--danger);
-  border: 1px solid #f3c2bd;
+  border: 1px solid var(--danger-border);
 }
 
 .status-prefix {
@@ -193,9 +226,9 @@ body {
 }
 
 .status-notice {
-  background: #eef4ff;
-  color: #1c4fa1;
-  border: 1px solid #c7d9ff;
+  background: var(--notice-bg);
+  color: var(--notice-text);
+  border: 1px solid var(--notice-border);
 }
 
 .workspace {
@@ -404,7 +437,7 @@ body {
   margin-top: 12px;
   padding: 12px;
   border-left: 3px solid var(--accent);
-  background: #f4f8ff;
+  background: var(--accent-soft);
   border-radius: 4px;
 }
 
@@ -442,7 +475,7 @@ body {
 }
 
 .chart-track {
-  background: #e9eef5;
+  background: var(--track);
   border-radius: 4px;
   height: 14px;
   overflow: hidden;

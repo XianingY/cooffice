@@ -29,6 +29,9 @@ describe("preload/main contract", () => {
       "openSpreadsheet",
       "revealPath",
       "getSessionToken",
+      "getTheme",
+      "setTheme",
+      "onThemeChange",
       "onMenuAction",
     ]) {
       expect(source).toContain(`${method}:`);

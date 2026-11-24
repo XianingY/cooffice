@@ -29,6 +29,7 @@ import { createProjectFile } from "./core/projectFile";
 import { buildReport } from "./core/report";
 import { DEFAULT_REPORT_CONFIG, normaliseReportConfig } from "./core/reportConfig";
 import type { ColumnMapping, ReportConfig, SalesData, TabularInput } from "./core/types";
+import type { ThemeSetting } from "./desktop/bridge";
 import {
   applyDesktopShellChrome,
   bytesToBlob,
@@ -43,6 +44,7 @@ import {
 } from "./desktop/bridge";
 import { salesDemo } from "./fixtures/salesDemo";
 import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
+import { currentTheme, initTheme, setTheme, subscribeTheme } from "./theme";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -98,6 +100,7 @@ export default function App() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiPolishedText, setAiPolishedText] = useState("");
   const [saveNotice, setSaveNotice] = useState<{ message: string; path?: string } | null>(null);
+  const [themeSetting, setThemeSetting] = useState<ThemeSetting>(() => currentTheme().setting);
   const skipNextSave = useRef(false);
   const desktop = useMemo(() => getDesktop(), []);
 
@@ -142,6 +145,17 @@ export default function App() {
   useEffect(() => {
     setDocumentEdited(hasUnappliedDraft);
   }, [hasUnappliedDraft]);
+
+  // One theme controller serves both shells; the shell decides where the
+  // preference lives and this component only mirrors it for the toolbar.
+  useEffect(() => {
+    const unsubscribe = subscribeTheme((state) => setThemeSetting(state.setting));
+    const teardown = initTheme();
+    return () => {
+      teardown();
+      unsubscribe();
+    };
+  }, []);
 
   const reportSave = (label: string, outcome: SaveBlobOutcome) => {
     if (!outcome.saved) {
@@ -292,6 +306,12 @@ export default function App() {
     }
   };
 
+  const cycleTheme = () => {
+    const order: ThemeSetting[] = ["system", "light", "dark"];
+    const next = order[(order.indexOf(themeSetting) + 1) % order.length];
+    void setTheme(next);
+  };
+
   const notices = [
     storageWarning,
     hasUnappliedDraft ? "导出已确认版本，不包含未应用草稿" : "",
@@ -398,6 +418,8 @@ export default function App() {
         onExportProject={() => void handleExportProject()}
         onImportProject={handleImportProject}
         onOpenProjectFromDisk={desktop ? () => void openProjectFromDisk() : undefined}
+        theme={themeSetting}
+        onCycleTheme={cycleTheme}
       />
       <StatusMessage error={importError} exportError={exportError} notices={notices} />
       {saveNotice ? (

@@ -1,12 +1,14 @@
 import type { MenuItemConstructorOptions } from "electron";
-import type { MenuAction } from "../shared/contract.js";
+import type { MenuAction, ThemeSetting } from "../shared/contract.js";
 
 export interface MenuContext {
   appName: string;
   isMac: boolean;
   isDev: boolean;
   recentFiles: string[];
+  theme: ThemeSetting;
   onAction(action: MenuAction): void;
+  onTheme(setting: ThemeSetting): void;
   onOpenRecent(filePath: string): void;
   onClearRecent(): void;
   onCheckForUpdates(): void;
@@ -76,6 +78,19 @@ export function buildMenuTemplate(ctx: MenuContext): MenuItemConstructorOptions[
     ],
   };
 
+  const themeItems: MenuItemConstructorOptions[] = (
+    [
+      ["system", "跟随系统"],
+      ["light", "浅色"],
+      ["dark", "深色"],
+    ] as const
+  ).map<MenuItemConstructorOptions>(([setting, label]) => ({
+    label,
+    type: "radio",
+    checked: ctx.theme === setting,
+    click: () => ctx.onTheme(setting),
+  }));
+
   const helpMenu: MenuItemConstructorOptions = {
     role: "help",
     label: "帮助",
@@ -115,6 +130,8 @@ export function buildMenuTemplate(ctx: MenuContext): MenuItemConstructorOptions[
         { role: "zoomOut", label: "缩小" },
         { type: "separator" },
         { role: "togglefullscreen", label: "全屏" },
+        { type: "separator" },
+        { label: "外观", submenu: themeItems },
       ],
     },
     {

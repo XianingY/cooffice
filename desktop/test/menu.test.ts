@@ -8,7 +8,9 @@ function context(overrides: Partial<MenuContext> = {}): MenuContext {
     isMac: true,
     isDev: false,
     recentFiles: [],
+    theme: "system",
     onAction: vi.fn(),
+    onTheme: vi.fn(),
     onOpenRecent: vi.fn(),
     onClearRecent: vi.fn(),
     onCheckForUpdates: vi.fn(),
@@ -97,6 +99,20 @@ describe("application menu", () => {
   it("only exposes devtools for development builds", () => {
     expect(JSON.stringify(buildMenuTemplate(context()))).not.toContain("toggleDevTools");
     expect(JSON.stringify(buildMenuTemplate(context({ isDev: true })))).toContain("toggleDevTools");
+  });
+
+  it("marks the active theme with a radio group under View", () => {
+    const ctx = context({ theme: "dark" });
+    const view = submenuOf(buildMenuTemplate(ctx), "视图");
+    const appearance = view.find((item) => item.label === "外观");
+    const items = appearance?.submenu as MenuItemConstructorOptions[];
+
+    expect(items.map((item) => item.label)).toEqual(["跟随系统", "浅色", "深色"]);
+    expect(items.map((item) => item.checked)).toEqual([false, false, true]);
+    expect(items.every((item) => item.type === "radio")).toBe(true);
+
+    (items[1].click as () => void)();
+    expect(ctx.onTheme).toHaveBeenCalledWith("light");
   });
 
   it("offers help and update entry points", () => {

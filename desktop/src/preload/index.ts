@@ -21,6 +21,9 @@ const CHANNELS = {
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
   sessionToken: "desktop:session-token",
+  themeState: "desktop:theme-state",
+  themeSet: "desktop:theme-set",
+  themeChanged: "desktop:theme-changed",
   log: "desktop:log",
 } as const;
 
@@ -57,6 +60,16 @@ export const desktopApi = {
   getSessionToken: (): string => {
     const token = ipcRenderer.sendSync(CHANNELS.sessionToken) as unknown;
     return typeof token === "string" ? token : "";
+  },
+
+  getTheme: () => ipcRenderer.sendSync(CHANNELS.themeState),
+  setTheme: (setting: "system" | "light" | "dark") => ipcRenderer.invoke(CHANNELS.themeSet, setting),
+  onThemeChange: (handler: (state: { setting: string; resolved: string }) => void) => {
+    const listener = (_event: unknown, state: { setting: string; resolved: string }) => handler(state);
+    ipcRenderer.on(CHANNELS.themeChanged, listener);
+    return () => {
+      ipcRenderer.removeListener(CHANNELS.themeChanged, listener);
+    };
   },
 
   openDataDir: () => ipcRenderer.invoke(CHANNELS.openDataDir),

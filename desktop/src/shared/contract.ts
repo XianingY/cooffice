@@ -19,8 +19,20 @@ export const IPC = {
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
   sessionToken: "desktop:session-token",
+  themeState: "desktop:theme-state",
+  themeSet: "desktop:theme-set",
+  themeChanged: "desktop:theme-changed",
   log: "desktop:log",
 } as const;
+
+export type ThemeSetting = "system" | "light" | "dark";
+export type AppliedTheme = "light" | "dark";
+
+/** Theme choice plus the palette the window actually resolved to. */
+export interface ThemeState {
+  setting: ThemeSetting;
+  resolved: AppliedTheme;
+}
 
 export type MenuAction =
   | "open-project"

@@ -53,6 +53,14 @@ export interface MenuMessage {
   filePath?: string;
 }
 
+export type ThemeSetting = "system" | "light" | "dark";
+export type AppliedTheme = "light" | "dark";
+
+export interface ThemeState {
+  setting: ThemeSetting;
+  resolved: AppliedTheme;
+}
+
 export interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -68,6 +76,10 @@ export interface DesktopBridge {
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): Promise<boolean>;
   getSessionToken(): string;
+  /** Synchronous so the palette can be applied before the first paint. */
+  getTheme(): ThemeState;
+  setTheme(setting: ThemeSetting): Promise<ThemeState>;
+  onThemeChange(handler: (state: ThemeState) => void): () => void;
   openDataDir(): Promise<string>;
   openLogsDir(): Promise<string>;
   log(level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>): void;

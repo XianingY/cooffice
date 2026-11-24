@@ -1,3 +1,11 @@
+import type { ThemeSetting } from "../desktop/bridge";
+
+export const THEME_LABELS: Record<ThemeSetting, string> = {
+  system: "跟随系统",
+  light: "浅色",
+  dark: "深色",
+};
+
 interface ToolbarProps {
   hasUnappliedDraft: boolean;
   onApply(): void;
@@ -9,6 +17,8 @@ interface ToolbarProps {
   onImportProject?(file: File): void;
   /** Present in the desktop shell: opens the native file dialog instead. */
   onOpenProjectFromDisk?(): void;
+  theme?: ThemeSetting;
+  onCycleTheme?(): void;
 }
 
 export function Toolbar({
@@ -21,6 +31,8 @@ export function Toolbar({
   onExportProject,
   onImportProject,
   onOpenProjectFromDisk,
+  theme,
+  onCycleTheme,
 }: ToolbarProps) {
   return (
     <div className="toolbar" role="toolbar" aria-label="项目操作">
@@ -74,6 +86,11 @@ export function Toolbar({
       <button type="button" onClick={onClear}>
         清除本地项目
       </button>
+      {onCycleTheme ? (
+        <button type="button" onClick={onCycleTheme} aria-label="切换主题">
+          主题：{theme ? THEME_LABELS[theme] : THEME_LABELS.system}
+        </button>
+      ) : null}
     </div>
   );
 }

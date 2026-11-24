@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, Menu, nativeTheme, shell } from "electron";
 import { join, resolve } from "node:path";
-import type { MenuMessage, UpdateCheckResult } from "../shared/contract.js";
+import type { MenuMessage, ThemeSetting, ThemeState, UpdateCheckResult } from "../shared/contract.js";
 import { IPC } from "../shared/contract.js";
 import { createShellLogger, type ShellLogger } from "./logger.js";
 import { buildMenuTemplate } from "./menu.js";
@@ -11,6 +11,7 @@ import { isReadableProjectPath, takeProjectArgument } from "./cli.js";
 import { resolveResources, type ResourcePaths } from "./paths.js";
 import { RecentFilesStore } from "./recentFiles.js";
 import { resolveUpdateFeed, runUpdateCheck } from "./updater.js";
+import { normaliseTheme, resolveTheme, ThemeStore } from "./theme.js";
 
 const APP_NAME = "What-if Report";
 app.setName(APP_NAME);
@@ -34,6 +35,25 @@ let logger: ShellLogger | null = null;
 let origin = "";
 let quitting = false;
 let pendingProjectPath: string | null = null;
+let themeStore: ThemeStore | null = null;
+let recentStore: RecentFilesStore | null = null;
+
+/** Electron resolves "system" for us, so native chrome and CSS stay in sync. */
+function currentThemeState(): ThemeState {
+  const setting = themeStore?.get() ?? "system";
+  return { setting, resolved: resolveTheme(setting, nativeTheme.shouldUseDarkColors) };
+}
+
+/** Single write path: persist, update native chrome, repaint menu and renderer. */
+function applyThemeSetting(setting: ThemeSetting): ThemeState {
+  const next = normaliseTheme(setting);
+  if (themeStore) themeStore.set(next);
+  nativeTheme.themeSource = next;
+  const state = currentThemeState();
+  mainWindow?.webContents.send(IPC.themeChanged, state);
+  if (recentStore) refreshMenu(recentStore);
+  return state;
+}
 
 function log(): ShellLogger {
   if (logger) return logger;
@@ -104,7 +124,11 @@ function refreshMenu(recent: RecentFilesStore): void {
     isMac: process.platform === "darwin",
     isDev: !app.isPackaged,
     recentFiles: recent.list(),
+    theme: currentThemeState().setting,
     onAction: (action) => sendMenuAction(mainWindow, action),
+    onTheme: (setting) => {
+      applyThemeSetting(setting);
+    },
     onOpenRecent: (filePath) => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
       mainWindow.webContents.send(IPC.menuAction, { action: "open-recent", filePath } satisfies MenuMessage);
@@ -164,6 +188,7 @@ async function bootstrap(): Promise<void> {
   log().info("api listening", { origin: embedded.origin });
 
   const recent = new RecentFilesStore(join(paths.stateDir, "recent-files.json"));
+  recentStore = recent;
 
   registerIpcHandlers({
     paths,
@@ -172,6 +197,8 @@ async function bootstrap(): Promise<void> {
     getWindow: () => mainWindow,
     getOrigin: () => origin,
     getSessionToken: () => embedded?.apiToken ?? "",
+    getThemeState: currentThemeState,
+    setTheme: applyThemeSetting,
     checkForUpdates,
     openExternal,
   });
@@ -199,6 +226,7 @@ function openWindow(paths: ResourcePaths): BrowserWindow {
     origin,
     preloadPath: join(__dirname, "..", "preload", "index.js"),
     stateFile: join(paths.stateDir, "window-state.json"),
+    backgroundColor: currentThemeState().resolved === "dark" ? "#111827" : "#f5f7fa",
     isDev: !app.isPackaged,
     openExternal,
   });
@@ -234,9 +262,12 @@ if (!gotLock) {
   app.whenReady().then(
     async () => {
       hardenSessionPermissions();
-      // The stylesheet ships a single light palette; a dark window frame would
-      // clash with the document surface.
-      nativeTheme.themeSource = "light";
+      themeStore = new ThemeStore(join(resolveResourcesPaths().stateDir, "theme.json"));
+      nativeTheme.themeSource = themeStore.get();
+      // Following the OS is a live setting, not just a startup snapshot.
+      nativeTheme.on("updated", () => {
+        mainWindow?.webContents.send(IPC.themeChanged, currentThemeState());
+      });
       app.setAboutPanelOptions({
         applicationName: APP_NAME,
         applicationVersion: app.getVersion(),

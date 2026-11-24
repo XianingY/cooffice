@@ -59,6 +59,24 @@ test("exposes the desktop bridge instead of browser downloads", async () => {
   expect(info?.dataDir.startsWith(userDataDir)).toBe(true);
 });
 
+test("switches the native theme and persists the choice", async () => {
+  const state = await page.evaluate(async () => {
+    await window.desktop!.setTheme("dark");
+    return window.desktop!.getTheme();
+  });
+  expect(state).toEqual({ setting: "dark", resolved: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  expect(background).toBe("rgb(17, 24, 39)");
+  expect(JSON.parse(readFileSync(join(userDataDir, "state", "theme.json"), "utf8"))).toBe("dark");
+
+  // Leave later assertions on a deterministic light palette.
+  await page.evaluate(async () => {
+    await window.desktop!.setTheme("light");
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
 test("serves cloud features from the embedded server on the app origin", async () => {
   // cloudEnabled is derived from the runtime origin, so the account panel is
   // live without any build-time configuration.

@@ -7,10 +7,13 @@ import type {
   OpenSpreadsheetResult,
   SaveFileRequest,
   SaveFileResult,
+  ThemeSetting,
+  ThemeState,
   UpdateCheckResult,
 } from "../shared/contract.js";
 import { IPC } from "../shared/contract.js";
 import { readProjectFile, readSpreadsheetFile, writeFileBytes, PROJECT_EXTENSIONS, SPREADSHEET_EXTENSIONS } from "./fileAccess.js";
+import { normaliseTheme } from "./theme.js";
 import type { RecentFilesStore } from "./recentFiles.js";
 import type { ShellLogger } from "./logger.js";
 import type { ResourcePaths } from "./paths.js";
@@ -23,6 +26,8 @@ export interface IpcDeps {
   getWindow(): BrowserWindow | null;
   getOrigin(): string;
   getSessionToken(): string;
+  getThemeState(): ThemeState;
+  setTheme(setting: ThemeSetting): ThemeState;
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): void;
 }
@@ -221,6 +226,14 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   ipcMain.on(IPC.sessionToken, (event) => {
     event.returnValue = deps.getSessionToken();
   });
+
+  // Also synchronous: applying the palette before first paint avoids a flash.
+  ipcMain.on(IPC.themeState, (event) => {
+    event.returnValue = deps.getThemeState();
+  });
+  ipcMain.handle(IPC.themeSet, (_event, setting: unknown): ThemeState =>
+    deps.setTheme(normaliseTheme(setting)),
+  );
 
   ipcMain.handle(IPC.openDataDir, () => shell.openPath(deps.paths.dataDir));
   ipcMain.handle(IPC.openLogsDir, () => shell.openPath(deps.paths.logsDir));

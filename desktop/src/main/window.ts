@@ -5,6 +5,8 @@ export interface MainWindowOptions {
   origin: string;
   preloadPath: string;
   stateFile: string;
+  /** Matches the resolved palette so the first paint never flashes white. */
+  backgroundColor?: string;
   isDev: boolean;
   openExternal(url: string): void;
 }
@@ -37,7 +39,7 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     minWidth: 960,
     minHeight: 640,
     // Matches --bg in the app stylesheet so the first paint is not a white flash.
-    backgroundColor: "#f5f7fa",
+    backgroundColor: options.backgroundColor ?? "#f5f7fa",
     title: "What-if Report · 数据沙盘",
     show: false,
     titleBarStyle: isMac ? "hiddenInset" : "default",
