@@ -176,6 +176,9 @@ test("imports a project dropped onto the window", async () => {
     window.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
   }, target);
 
+  // Editing earlier in this run means there is work to protect: the drop must ask.
+  await expect(page.getByRole("dialog", { name: "替换当前项目？" })).toBeVisible();
+  await page.getByRole("button", { name: "确认导入" }).click();
   await expect(page.getByLabel("华东当前销售额")).toHaveValue("77");
 });
 

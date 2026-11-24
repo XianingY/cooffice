@@ -17,6 +17,7 @@ import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
+import { ConfirmImportDialog } from "./components/ConfirmImportDialog";
 import { DesktopFooter } from "./components/DesktopFooter";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
@@ -95,6 +96,7 @@ export default function App() {
   const [boot] = useState(bootProject);
   const [state, dispatch] = useReducer(projectReducer, boot.state);
   const [importError, setImportError] = useState("");
+  const [pendingImport, setPendingImport] = useState<{ label: string; apply: () => void } | null>(null);
   const [exportError, setExportError] = useState("");
   const [storageWarning, setStorageWarning] = useState(boot.warning);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
@@ -147,6 +149,22 @@ export default function App() {
     () => JSON.stringify(state.baseline) !== JSON.stringify(state.draft),
     [state.baseline, state.draft],
   );
+
+  // Derived from state so every mutation path is covered without flags: an
+  // edited baseline, an unapplied draft, or a changed report config all mean
+  // an import would destroy something the user cares about.
+  const hasWork = useMemo(
+    () =>
+      JSON.stringify(state.baseline) !== JSON.stringify(salesDemo) ||
+      hasUnappliedDraft ||
+      JSON.stringify(reportConfig) !== JSON.stringify(DEFAULT_REPORT_CONFIG),
+    [state.baseline, hasUnappliedDraft, reportConfig],
+  );
+
+  const runImport = (label: string, apply: () => void) => {
+    if (hasWork) setPendingImport({ label, apply });
+    else apply();
+  };
 
   // macOS shows an unsaved-changes dot in the close button.
   useEffect(() => {
@@ -223,9 +241,11 @@ export default function App() {
     if (!pendingCsv) return;
     try {
       const data = applyColumnMapping(pendingCsv.input, mapping);
-      setImportError("");
-      dispatch({ type: "import", data });
       setPendingCsv(null);
+      runImport("CSV 表格", () => {
+        setImportError("");
+        dispatch({ type: "import", data });
+      });
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "CSV 数据校验失败");
     }
@@ -261,15 +281,23 @@ export default function App() {
     try {
       if (file.name.toLowerCase().endsWith(".json")) {
         const document = await readProjectFile(file);
-        dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
-        setReportConfig(normaliseReportConfig(document.config));
-        setImportError("");
+        runImport(file.name, () => {
+          dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
+          setReportConfig(normaliseReportConfig(document.config));
+          setImportError("");
+        });
         return;
       }
       const imported = await importTabularFile(file);
-      setImportError("");
-      if (imported.kind === "csv") setPendingCsv({ input: imported.input, suggested: imported.suggested });
-      else dispatch({ type: "import", data: imported.data });
+      if (imported.kind === "csv") {
+        setPendingCsv({ input: imported.input, suggested: imported.suggested });
+        setImportError("");
+      } else {
+        runImport(file.name, () => {
+          setImportError("");
+          dispatch({ type: "import", data: imported.data });
+        });
+      }
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "文件导入失败，请检查文件后重试");
     }
@@ -279,10 +307,12 @@ export default function App() {
   const applyProjectDocument = (text: string, filePath: string | null) => {
     try {
       const document = parseProjectFileText(text);
-      dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
-      setReportConfig(normaliseReportConfig(document.config));
-      setImportError("");
-      if (filePath) trackDocument(filePath);
+      runImport(filePath ? shortPath(filePath) : "项目文件", () => {
+        dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
+        setReportConfig(normaliseReportConfig(document.config));
+        setImportError("");
+        if (filePath) trackDocument(filePath);
+      });
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "项目文件导入失败");
     }
@@ -320,9 +350,15 @@ export default function App() {
     try {
       const file = toFile(result.name ?? "import.xlsx", result.bytes ?? new Uint8Array());
       const imported = await importTabularFile(file);
-      setImportError("");
-      if (imported.kind === "csv") setPendingCsv({ input: imported.input, suggested: imported.suggested });
-      else dispatch({ type: "import", data: imported.data });
+      if (imported.kind === "csv") {
+        setPendingCsv({ input: imported.input, suggested: imported.suggested });
+        setImportError("");
+      } else {
+        runImport(file.name, () => {
+          setImportError("");
+          dispatch({ type: "import", data: imported.data });
+        });
+      }
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "文件导入失败，请检查文件后重试");
     }
@@ -435,8 +471,10 @@ export default function App() {
 
       <FileImport
         onImport={(data: SalesData) => {
-          setImportError("");
-          dispatch({ type: "import", data });
+          runImport("表格文件", () => {
+            setImportError("");
+            dispatch({ type: "import", data });
+          });
         }}
         onCsvInput={(input: TabularInput, suggested: ColumnMapping) => {
           setPendingCsv({ input, suggested });
@@ -479,6 +517,15 @@ export default function App() {
         onCancel={() => setClearDialogOpen(false)}
         onConfirm={handleClear}
       />
+      <ConfirmImportDialog
+        open={pendingImport !== null}
+        fileName={pendingImport?.label}
+        onCancel={() => setPendingImport(null)}
+        onConfirm={() => {
+          pendingImport?.apply();
+          setPendingImport(null);
+        }}
+      />
       {pendingCsv ? (
         <ColumnMappingDialog
           input={pendingCsv.input}
@@ -518,9 +565,11 @@ export default function App() {
         draft={state.draft}
         config={reportConfig}
         onOpenProject={(baseline, draft, config) => {
-          dispatch({ type: "importDocument", baseline, draft });
-          setReportConfig(normaliseReportConfig(config));
-          setImportError("");
+          runImport("云端项目", () => {
+            dispatch({ type: "importDocument", baseline, draft });
+            setReportConfig(normaliseReportConfig(config));
+            setImportError("");
+          });
         }}
       />
 
