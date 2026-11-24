@@ -28,7 +28,7 @@ describe("OpenAPI documentation", () => {
     expect(doc.openapi).toMatch(/^3\.1/);
     expect(doc.info.title).toBe("What-if Report API");
     // Tracks server/package.json; the document itself reads the manifest.
-    expect(doc.info.version).toBe("1.3.0");
+    expect(doc.info.version).toBe("1.4.0");
     expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining([
       "/api/auth/login",
       "/api/projects",

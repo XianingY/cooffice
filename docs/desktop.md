@@ -54,7 +54,7 @@ What-if Report.app/Contents/Resources/
 | Windows | `%APPDATA%\What-if Report\` |
 | Linux | `~/.config/What-if Report/` |
 
-其中 `data/whatif.db`（账号与云项目）、`logs/main.log`、`logs/server.log`（JSON Lines，单文件 2 MB 轮转）、`state/window-state.json`、`state/recent-files.json`。菜单「帮助 › 打开日志目录」与页脚按钮可直接定位。
+其中 `data/whatif.db`（账号与云项目）、`logs/main.log`、`logs/server.log`（JSON Lines，单文件 2 MB 轮转）、`state/window-state.json`、`state/recent-files.json`、`state/theme.json`。菜单「帮助 › 打开日志目录」与页脚按钮可直接定位。
 
 ## 桌面能力
 
@@ -65,6 +65,8 @@ What-if Report.app/Contents/Resources/
 | 原生对话框 | 打开/保存项目、导入 Excel/CSV 都走系统对话框；导出后提示路径并可「在访达中显示」 |
 | 最近打开 | 最多 8 条，文件被删除时自动剔除 |
 | 窗口状态 | 位置、尺寸、最大化状态持久化；显示器拔掉后自动重新居中，不会跑到屏幕外 |
+| 深色主题 | 「视图 › 外观」切换跟随系统/浅色/深色；选择写入 `state/theme.json`，原生窗框与 CSS 调色板同步，首帧不闪白 |
+| 拖拽导入 | 把 `.json` 项目或 `.xlsx/.xls/.csv` 表格拖进窗口即可导入；主进程复用对话框的扩展名/大小校验并拦截 `file://` 导航 |
 | 单实例 | 再次启动会聚焦已有窗口，并把命令行传入的项目文件交给当前实例 |
 | 文档关联 | 命令行或 Finder「打开方式」传入 `.json` 时自动载入；未保存改动在关闭按钮上显示圆点 |
 | 外链安全 | `window.open`、非本应用跳转一律拦截并交给系统浏览器；相机/麦克风/定位/录屏权限全部拒绝 |
@@ -113,16 +115,16 @@ node desktop/scripts/package.mjs --mac arm64
 ## 验证
 
 ```bash
-npm run verify:desktop              # 主进程类型检查 + 41 项单测
-npm run test:e2e:desktop            # 7 项真实 Electron 端到端
+npm run verify:desktop              # 主进程类型检查 + 52 项单测
+npm run test:e2e:desktop            # 14 项真实 Electron 端到端
 WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需要关闭 Chromium 沙箱
 ```
 
 端到端用例驱动的是真实 Electron 进程：窗口与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、编辑/应用草稿、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成 SQLite 与密钥。
 
-当前基线：**桌面单测 45 项、Electron E2E 11 项、根 Vitest 312 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
+当前基线：**桌面单测 52 项、Electron E2E 14 项、根 Vitest 329 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
 
-E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、经令牌守卫的注册、草稿编辑与应用、未保存标记、菜单指令回传、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成、窗口位置跨重启恢复。
+E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、主题切换与持久化、内嵌 API 的 origin、经令牌守卫的注册、草稿编辑与应用、未保存标记、菜单指令回传、经 IPC 落盘、刷新后本地草稿仍在、拖拽导入项目、拒绝不支持的拖入文件、profile 目录生成、窗口位置跨重启恢复。
 
 ## 常见问题
 
@@ -139,6 +141,6 @@ E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、内嵌 API 的
 ## 已知边界
 
 - 未做文件类型注册（双击 `.json` 不会唤起本应用），但支持「打开方式」与命令行传入。
-- 未做深色主题：界面为单一浅色调，主进程固定 `themeSource = "light"`，避免深色窗框与浅色文档割裂。
-- 拖拽文件到窗口不会导入（请用「导入 Excel 或 CSV」）；列入 [路线图](../ROADMAP.md)。
+- 文件类型注册仍需要做：双击 `.json` 不会唤起本应用，但支持「打开方式」与命令行传入，也可直接拖入窗口。
+- 拖拽导入只接受单个文件；一次拖入多个时取第一个，其余忽略。
 - 安装包未签名分发时，macOS 首次打开需右键「打开」；正式分发请走签名 + 公证流程。
