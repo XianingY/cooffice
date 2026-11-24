@@ -3,6 +3,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Release builds are manual on purpose: producing installers is not the same
+  # as publishing them, and no upload step runs automatically.
+  workflow_dispatch:
 jobs:
   secret:
     # Full-history scan. Known synthetic fixtures are pinned in .gitleaksignore
@@ -103,3 +106,42 @@ jobs:
             test-results
             playwright-report
           retention-days: 7
+
+  release:
+    # Manual only. Secrets are referenced by name; none are stored in the repo.
+    # When unset, electron-builder simply skips signing/notarisation and the
+    # job still produces unsigned artifacts for local verification.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    env:
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            desktop/package-lock.json
+      - run: npm ci
+      - run: npm --prefix server ci
+      - run: npm --prefix desktop ci
+      - name: build signed installers
+        run: npm run desktop:dist
+      - name: keep installers as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.blockmap
+            desktop/release/latest-mac.yml
+          if-no-files-found: warn
+          retention-days: 14
