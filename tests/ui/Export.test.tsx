@@ -22,13 +22,15 @@ const confirmedEast = expect.objectContaining({ name: "华东", current: 120 });
 describe("export uses the confirmed baseline", () => {
   it("warns about the pending draft and exports baseline for both formats", async () => {
     vi.mocked(createWordReport).mockResolvedValue(new Blob(["docx"]));
+    vi.mocked(createSalesWorkbookBytes).mockClear();
+    vi.mocked(downloadBlob).mockClear();
     const user = userEvent.setup();
     render(<App />);
 
     const east = screen.getByLabelText("华东当前销售额");
     await user.clear(east);
     await user.type(east, "90");
-    expect(screen.getByText("导出已确认版本，不包含未应用草稿")).toBeInTheDocument();
+    expect(screen.getByText(/导出已确认版本，不包含未应用草稿/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "导出 Excel" }));
     // The workbook module is loaded on demand, so assertions wait for the click
@@ -50,6 +52,46 @@ describe("export uses the confirmed baseline", () => {
     await waitFor(() =>
       expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "what-if-report-confirmed.docx"),
     );
+  });
+
+  it("exports the draft without applying it, using draft filenames and report", async () => {
+    vi.mocked(createWordReport).mockResolvedValue(new Blob(["docx"]));
+    vi.mocked(createSalesWorkbookBytes).mockClear();
+    vi.mocked(createWordReport).mockClear();
+    vi.mocked(downloadBlob).mockClear();
+    const user = userEvent.setup();
+    render(<App />);
+
+    const east = screen.getByLabelText("华东当前销售额");
+    await user.clear(east);
+    await user.type(east, "90");
+    await user.click(screen.getByRole("radio", { name: "草稿版" }));
+
+    expect(screen.getByText(/导出草稿版本，包含尚未应用的修改/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "导出 Excel" }));
+    await waitFor(() =>
+      expect(createSalesWorkbookBytes).toHaveBeenCalledWith(
+        expect.objectContaining({ regions: expect.arrayContaining([expect.objectContaining({ name: "华东", current: 90 })]) }),
+      ),
+    );
+    await waitFor(() =>
+      expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "what-if-report-draft.xlsx"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "导出 Word" }));
+    await waitFor(() => expect(createWordReport).toHaveBeenCalledTimes(1));
+    const [data, report] = vi.mocked(createWordReport).mock.calls[0];
+    expect(data.regions[0].current).toBe(90);
+    expect(report.blocks[0].text).toBe("当前总销售额为 270 万元。");
+    await waitFor(() =>
+      expect(downloadBlob).toHaveBeenCalledWith(expect.any(Blob), "what-if-report-draft.docx"),
+    );
+
+    // The baseline is untouched: applying is still available and reverts to 120.
+    expect(screen.getByRole("button", { name: "应用修改" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "撤销草稿" }));
+    expect(screen.getByLabelText("华东当前销售额")).toHaveValue(120);
   });
 
   it("shows a recoverable error without changing the project when export fails", async () => {

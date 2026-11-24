@@ -7,7 +7,12 @@ import {
 } from "./adapters/storage/projectFileStorage";
 import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
 import { importTabularFile } from "./adapters/tabular/importTabularFile";
-import { CONFIRMED_DOCX_FILENAME, CONFIRMED_XLSX_FILENAME } from "./adapters/xlsx/filenames";
+import {
+  CONFIRMED_DOCX_FILENAME,
+  CONFIRMED_XLSX_FILENAME,
+  DRAFT_DOCX_FILENAME,
+  DRAFT_XLSX_FILENAME,
+} from "./adapters/xlsx/filenames";
 import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
@@ -20,7 +25,7 @@ import { ReportConfigPanel } from "./components/ReportConfigPanel";
 import { ReportPreview } from "./components/ReportPreview";
 import { SalesTable } from "./components/SalesTable";
 import { StatusMessage } from "./components/StatusMessage";
-import { Toolbar } from "./components/Toolbar";
+import { Toolbar, type ExportSource } from "./components/Toolbar";
 import { applyColumnMapping } from "./core/columnMapping";
 import { buildChart } from "./core/chart";
 import { compareSnapshots } from "./core/impacts";
@@ -102,6 +107,7 @@ export default function App() {
   const [aiPolishedText, setAiPolishedText] = useState("");
   const [saveNotice, setSaveNotice] = useState<{ message: string; path?: string } | null>(null);
   const [themeSetting, setThemeSetting] = useState<ThemeSetting>(() => currentTheme().setting);
+  const [exportSource, setExportSource] = useState<ExportSource>("baseline");
   const skipNextSave = useRef(false);
   const desktop = useMemo(() => getDesktop(), []);
 
@@ -171,15 +177,21 @@ export default function App() {
     );
   };
 
+  // Exporting the draft lets a what-if result leave the app without first
+  // applying it (which would destroy the comparison baseline).
+  const exportData = exportSource === "draft" ? state.draft : state.baseline;
+  const exportReport = exportSource === "draft" ? draftReport : baselineReport;
+  const exportLabel = exportSource === "draft" ? "草稿 Excel " : "Excel ";
+
   const handleExportExcel = async () => {
     try {
       // SheetJS is only fetched when the user actually exports a workbook.
       const { createSalesWorkbookBytes } = await import("./adapters/xlsx/downloadWorkbook");
-      const blob = bytesToBlob(createSalesWorkbookBytes(state.baseline), XLSX_MIME);
+      const blob = bytesToBlob(createSalesWorkbookBytes(exportData), XLSX_MIME);
       reportSave(
-        "Excel ",
+        exportLabel,
         await saveBlob(blob, {
-          suggestedName: CONFIRMED_XLSX_FILENAME,
+          suggestedName: exportSource === "draft" ? DRAFT_XLSX_FILENAME : CONFIRMED_XLSX_FILENAME,
           filterName: "Excel 工作簿",
           extensions: ["xlsx"],
         }),
@@ -193,11 +205,11 @@ export default function App() {
     try {
       // Load the DOCX library only when the user actually exports Word.
       const { createWordReport } = await import("./adapters/docx/createWordReport");
-      const blob = await createWordReport(state.baseline, baselineReport);
+      const blob = await createWordReport(exportData, exportReport);
       reportSave(
-        "Word ",
+        exportSource === "draft" ? "草稿 Word " : "Word ",
         await saveBlob(blob, {
-          suggestedName: CONFIRMED_DOCX_FILENAME,
+          suggestedName: exportSource === "draft" ? DRAFT_DOCX_FILENAME : CONFIRMED_DOCX_FILENAME,
           filterName: "Word 文档",
           extensions: ["docx"],
         }),
@@ -324,7 +336,11 @@ export default function App() {
 
   const notices = [
     storageWarning,
-    hasUnappliedDraft ? "导出已确认版本，不包含未应用草稿" : "",
+    hasUnappliedDraft
+      ? exportSource === "draft"
+        ? "导出草稿版本，包含尚未应用的修改；已确认基线保持不变"
+        : "导出已确认版本，不包含未应用草稿；可在工具栏切换为草稿版"
+      : "",
   ].filter((text): text is string => text !== "");
 
   const handleClear = () => {
@@ -435,6 +451,8 @@ export default function App() {
         onClear={() => setClearDialogOpen(true)}
         onExportExcel={() => void handleExportExcel()}
         onExportWord={() => void handleExportWord()}
+        exportSource={exportSource}
+        onExportSourceChange={setExportSource}
         onExportProject={() => void handleExportProject()}
         onImportProject={handleImportProject}
         onOpenProjectFromDisk={desktop ? () => void openProjectFromDisk() : undefined}

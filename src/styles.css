@@ -146,6 +146,34 @@ body {
   cursor: not-allowed;
 }
 
+.export-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0 10px;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.export-source legend {
+  padding: 0;
+}
+
+.export-source label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.export-source input[type="radio"] {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
 .toolbar button.primary {
   background: var(--accent);
   border-color: var(--accent);

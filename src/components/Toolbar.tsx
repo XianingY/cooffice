@@ -1,5 +1,12 @@
 import type { ThemeSetting } from "../desktop/bridge";
 
+export type ExportSource = "baseline" | "draft";
+
+export const EXPORT_SOURCE_LABELS: Record<ExportSource, string> = {
+  baseline: "已确认版",
+  draft: "草稿版",
+};
+
 export const THEME_LABELS: Record<ThemeSetting, string> = {
   system: "跟随系统",
   light: "浅色",
@@ -13,6 +20,9 @@ interface ToolbarProps {
   onClear(): void;
   onExportExcel?(): void;
   onExportWord?(): void;
+  /** Which snapshot the Excel/Word buttons export. */
+  exportSource?: ExportSource;
+  onExportSourceChange?(source: ExportSource): void;
   onExportProject?(): void;
   onImportProject?(file: File): void;
   /** Present in the desktop shell: opens the native file dialog instead. */
@@ -28,6 +38,8 @@ export function Toolbar({
   onClear,
   onExportExcel,
   onExportWord,
+  exportSource = "baseline",
+  onExportSourceChange,
   onExportProject,
   onImportProject,
   onOpenProjectFromDisk,
@@ -48,6 +60,24 @@ export function Toolbar({
       <button type="button" onClick={onRevert} disabled={!hasUnappliedDraft}>
         撤销草稿
       </button>
+      {onExportSourceChange && (onExportExcel || onExportWord) ? (
+        <fieldset className="export-source">
+          <legend className="sr-only">导出来源</legend>
+          {(["baseline", "draft"] as const).map((source) => (
+            <label key={source} htmlFor={`export-source-${source}`}>
+              <input
+                id={`export-source-${source}`}
+                type="radio"
+                name="export-source"
+                value={source}
+                checked={exportSource === source}
+                onChange={() => onExportSourceChange(source)}
+              />
+              {EXPORT_SOURCE_LABELS[source]}
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
       {onExportExcel ? (
         <button type="button" onClick={onExportExcel}>
           导出 Excel
