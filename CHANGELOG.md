@@ -2,6 +2,20 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.5.0] - 2026-11-24（文件关联与分发准备）
+
+### Added
+
+- `.json` 项目文件关联：macOS 写入 `CFBundleDocumentTypes`（`Editor`/`Default`），双击即可载入；Windows NSIS 改为 per-machine 安装以写入注册表，Linux AppImage 仍需手动设置默认程序。
+- CI 新增 gitleaks 全历史门禁：14 条合成测试值按指纹基线化，新增疑似凭据直接失败；GitHub Secret Scanning 实测为 0 告警。
+- CI 新增**手动触发**的 `release` job：签名/公证凭据只按名称引用仓库 Secrets，产物只上传为 artifacts，不自动发布到 Releases 或更新源。
+
+### Verified
+
+- 根 Vitest：77 文件 / 332 项；后端 Vitest：35 文件 / 120 项；桌面单测：11 文件 / 55 项。
+- 浏览器 E2E 13 项、全栈 E2E 2 项、Electron E2E 14 项通过；`gitleaks detect --log-opts=--all` 为 0 findings。
+- 未签名 `.app` 的 `Info.plist` 确认含 `CFBundleDocumentTypes`（json/Editor/Default）且 `icon.icns` 随包。
+
 ## [1.4.0] - 2026-11-24（桌面体验补齐）
 
 ### Added
