@@ -68,7 +68,7 @@ What-if Report.app/Contents/Resources/
 | 深色主题 | 「视图 › 外观」切换跟随系统/浅色/深色；选择写入 `state/theme.json`，原生窗框与 CSS 调色板同步，首帧不闪白 |
 | 拖拽导入 | 把 `.json` 项目或 `.xlsx/.xls/.csv` 表格拖进窗口即可导入；主进程复用对话框的扩展名/大小校验并拦截 `file://` 导航 |
 | 单实例 | 再次启动会聚焦已有窗口，并把命令行传入的项目文件交给当前实例 |
-| 文档关联 | 命令行或 Finder「打开方式」传入 `.json` 时自动载入；未保存改动在关闭按钮上显示圆点 |
+| 文档关联 | 双击 `.json` 项目文件即可唤起应用并载入；macOS 写入 `CFBundleDocumentTypes`，Windows 在 per-machine 安装时写入注册表；Linux AppImage 需自行设置默认应用。未保存改动在关闭按钮上显示圆点 |
 | 外链安全 | `window.open`、非本应用跳转一律拦截并交给系统浏览器；相机/麦克风/定位/录屏权限全部拒绝 |
 | 更新检查 | 「检查更新…」读取 `WHATIF_UPDATE_FEED`（仅 https），未配置时如实提示而非假装已检查 |
 | 崩溃可诊断 | 渲染进程日志经 IPC 落到主进程日志文件，用户反馈问题时可直接提供日志目录 |
@@ -100,29 +100,31 @@ node desktop/scripts/package.mjs --mac arm64
 产物在 `desktop/release/`：macOS 为 `.dmg` + `.zip`（均带 blockmap 用于增量更新），Windows 为 NSIS 安装器，Linux 为 AppImage。
 
 - **图标**：`npm run desktop:icons` 用纯 Node 重新生成 `build-resources/icon.{png,icns,ico}`（脚本自带矢量栅格化，无第三方图像库）。
-- **签名**：默认使用本机钥匙串里的证书；正式分发前设置 `CSC_LINK`/`CSC_KEY_PASSWORD`。
+- **签名**：默认使用本机钥匙串里的证书；正式分发前设置 `CSC_LINK`/`CSC_KEY_PASSWORD`。CI 的手动 `release` job 从同名仓库 Secrets 读取，仓库内不保存任何凭据。
 - **公证**：设置 `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` 后 electron-builder 会自动公证；未配置时日志会明确写出 `skipped macOS notarization`。
+- **CI 发布构建**：在 Actions 页手动触发 `Run workflow` 才会执行 `release` job；它只把 dmg/zip/blockmap/latest-mac.yml 上传为构建产物（保留 14 天），**不会推送到 Releases、不会写更新源、不会通知用户**。未配置签名 Secrets 时仍可产出未签名包用于本地验证。
 - **架构**：`electron-builder.yml` 默认同时产出 arm64 与 x64；交叉构建 x64 需要对应架构的编译工具链，CI 里建议分矩阵跑。
+- **文件关联**：`fileAssociations` 把 `.json` 注册为本应用的项目文档：macOS 写入 `CFBundleDocumentTypes`（`Editor` / `Default`），已用未签名 `.app` 的 `Info.plist` 验证。Windows 的 NSIS 只在 `perMachine: true` 时写注册表，因此安装需要管理员权限并落到 Program Files；Linux AppImage 不支持注册，可在系统设置里手动指定默认程序。`.json` 是通用格式，关联后其它 JSON 双击也会打开本应用，但只会提示「项目文件结构无效」，不会改写原文件。
 
 ### 自动更新
 
 `electron-updater` 已接入，但默认不指向任何服务器（`publish.url` 是占位域名）。要启用：
 
-1. 把 `desktop/release/` 里的 `latest-mac.yml`、`.dmg`、`.zip`、`.blockmap` 上传到任意静态站点；
+1. 从手动 `release` job 的构建产物（或本地 `desktop/release/`）取出 `latest-mac.yml`、`.dmg`、`.zip`、`.blockmap`，上传到你控制的静态站点；
 2. 用 `WHATIF_UPDATE_FEED=https://你的域名/releases` 启动，或直接改 `electron-builder.yml` 的 `publish.url`；
 3. 「检查更新…」会比对版本并在有新版时提示下载地址。当前不做静默自动安装，避免在未签名的开发构建上误触发。
 
 ## 验证
 
 ```bash
-npm run verify:desktop              # 主进程类型检查 + 52 项单测
+npm run verify:desktop              # 主进程类型检查 + 55 项单测
 npm run test:e2e:desktop            # 14 项真实 Electron 端到端
 WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需要关闭 Chromium 沙箱
 ```
 
 端到端用例驱动的是真实 Electron 进程：窗口与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、编辑/应用草稿、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成 SQLite 与密钥。
 
-当前基线：**桌面单测 52 项、Electron E2E 14 项、根 Vitest 329 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
+当前基线：**桌面单测 55 项、Electron E2E 14 项、根 Vitest 332 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
 
 E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、主题切换与持久化、内嵌 API 的 origin、经令牌守卫的注册、草稿编辑与应用、未保存标记、菜单指令回传、经 IPC 落盘、刷新后本地草稿仍在、拖拽导入项目、拒绝不支持的拖入文件、profile 目录生成、窗口位置跨重启恢复。
 
@@ -141,6 +143,6 @@ E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、主题切换�
 ## 已知边界
 
 - 未做文件类型注册（双击 `.json` 不会唤起本应用），但支持「打开方式」与命令行传入。
-- 文件类型注册仍需要做：双击 `.json` 不会唤起本应用，但支持「打开方式」与命令行传入，也可直接拖入窗口。
+- Linux AppImage 无法注册文件关联；双击 `.json` 需在系统设置中把本应用设为默认程序。
 - 拖拽导入只接受单个文件；一次拖入多个时取第一个，其余忽略。
 - 安装包未签名分发时，macOS 首次打开需右键「打开」；正式分发请走签名 + 公证流程。
