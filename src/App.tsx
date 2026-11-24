@@ -600,7 +600,7 @@ export default function App() {
       <footer className="app-footer">
         {desktop
           ? "文件仅在本机处理：导入、计算与导出都不经过网络，断网也能完整使用。"
-          : "文件仅在浏览器本地处理，不会上传到服务器；导出始终使用已确认版本。"}
+          : "文件仅在浏览器本地处理，不会上传到服务器；可在工具栏选择导出已确认版或草稿版。"}
         <DesktopFooter />
       </footer>
     </main>
