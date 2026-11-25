@@ -18,7 +18,7 @@ const env: Env = {
   DATABASE_PATH: ":memory:",
   CORS_ORIGINS: "http://localhost:5173",
   RATE_LIMIT_MAX: 1000,
-  RATE_LIMIT_WINDOW: "1m",
+  RATE_LIMIT_WINDOW: "1m", TRUST_PROXY: false,
   API_DOCS: true,
   SERVE_STATIC: false,
   STATIC_DIR: "../dist",

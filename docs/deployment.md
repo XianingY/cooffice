@@ -34,6 +34,8 @@ docker compose up -d --build
 
 生产环境必须设置 `COOKIE_SECURE=true` 并置于 HTTPS 之后;同时把 `CORS_ORIGINS` 限制为实际域名。
 
+容器方案由 nginx 反向代理 API,compose 已设 `TRUST_PROXY=true`:限流键改用 nginx 每次覆盖写入的 `X-Real-IP`,避免全体用户共用一个桶。该开关**只适用于这个拓扑**——若把 API 直接暴露给公网,必须保持 `TRUST_PROXY=false`,因为客户端伪造的 `X-Forwarded-For` 不会被信任。nginx 同时下发与自托管 SPA 完全一致的 Content-Security-Policy,二者由 `tests/config/nginxCsp.test.ts` 校验一致性。
+
 ## 环境变量
 
 后端变量见 `server/.env.example`,全部在启动时校验,缺失或不合法会快速失败。关键项:
@@ -42,6 +44,7 @@ docker compose up -d --build
 |---|---|
 | JWT_SECRET | 签名密钥,生产必须替换占位值 |
 | JWT_ACCESS_TTL / JWT_REFRESH_TTL | 访问/刷新令牌有效期 |
+| TRUST_PROXY | 仅 nginx 反代拓扑设为 true;直接暴露 API 时保持 false |
 | COOKIE_SECURE | 生产 HTTPS 下设为 true |
 | DATABASE_PATH | SQLite 文件位置 |
 | CORS_ORIGINS | 显式来源,生产禁止 `*` |

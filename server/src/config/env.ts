@@ -24,6 +24,12 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default("http://localhost:5173"),
   RATE_LIMIT_MAX: positiveInt.default(100),
   RATE_LIMIT_WINDOW: z.string().default("1m"),
+  /**
+   * Behind a trusted reverse proxy, key rate limits on the client IP the proxy
+   * supplies instead of the shared proxy address. Off by default: a directly
+   * exposed server must not trust a client-supplied forwarding header.
+   */
+  TRUST_PROXY: booleanFromString.default("false"),
 
   /** OpenAPI/Swagger UI; development and API deployments only. */
   API_DOCS: booleanFromString.default("true"),

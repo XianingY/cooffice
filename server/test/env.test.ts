@@ -13,6 +13,13 @@ describe("loadEnv", () => {
     expect(env.COOKIE_SECURE).toBe(true);
     expect(env.PORT).toBe(4000);
     expect(env.DATABASE_PATH).toBe("./data/whatif.db");
+    expect(env.TRUST_PROXY).toBe(false);
+  });
+
+  it("enables proxy-aware rate-limit keys only via an explicit flag", () => {
+    expect(loadEnv({ ...base, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
+    expect(loadEnv({ ...base, TRUST_PROXY: "1" }).TRUST_PROXY).toBe(true);
+    expect(loadEnv({ ...base, TRUST_PROXY: "false" }).TRUST_PROXY).toBe(false);
   });
 
   it("fails fast on a short JWT secret", () => {

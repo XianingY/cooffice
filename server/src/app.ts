@@ -33,6 +33,7 @@ import { EventBus } from "./events/eventBus.js";
 import { registerSseRoutes } from "./events/sseRoutes.js";
 import { registerStaticSpa } from "./static/spa.js";
 import { registerSessionGuard } from "./middleware/sessionGuard.js";
+import { makeRateLimitKey } from "./middleware/rateLimitKey.js";
 
 export interface BuildAppOptions {
   env: Env;
@@ -55,6 +56,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const { env } = options;
   // Our request-context hook already logs method/status/duration with a
   // correlation ID; disable Fastify's duplicate access log to avoid noise.
+  // Keep Fastify's own trustProxy off: request.ip must stay the socket peer.
+  // Only the rate limiter reads a proxy-supplied address, and only when the
+  // deployment explicitly opts in through TRUST_PROXY.
   const app = Fastify({ logger: false, bodyLimit: 1_048_576, trustProxy: false });
 
   registerRequestLogging(app, env.LOG_LEVEL, env.NODE_ENV !== "production", env.LOG_FILE);
@@ -72,6 +76,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     global: true,
     max: env.RATE_LIMIT_MAX,
     timeWindow: env.RATE_LIMIT_WINDOW,
+    keyGenerator: makeRateLimitKey(env.TRUST_PROXY),
   });
 
   const db = options.db ?? openDatabase(env.DATABASE_PATH);

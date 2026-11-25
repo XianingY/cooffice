@@ -16,6 +16,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       RATE_LIMIT_MAX: "100"
       RATE_LIMIT_WINDOW: 1m
+      # nginx overwrites X-Real-IP with the real peer; see TRUST_PROXY in
+      # server/src/config/env.ts. Do not enable when exposing the API directly.
+      TRUST_PROXY: "true"
     volumes:
       - api-data:/app/data
     restart: unless-stopped
