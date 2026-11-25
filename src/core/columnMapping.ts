@@ -45,16 +45,35 @@ export function suggestColumnMapping(input: TabularInput): ColumnMapping {
   return mapping;
 }
 
-const DECIMAL = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+const DECIMAL = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
+const CURRENCY_PREFIX = /^[¥￥$€£]+/;
+const CURRENCY_SUFFIX = /[¥￥$€£]+$/;
 
+/**
+ * Accept the shapes finance spreadsheets actually contain: thousands
+ * separators, currency prefixes/suffixes (including full-width ￥), surrounding
+ * whitespace and scientific notation. Negatives stay rejected because the
+ * domain has no negative sales figure.
+ */
 function parseAmount(raw: string | undefined, label: string, rowNumber: number): number {
-  if (raw === undefined || raw.trim() === "" || !DECIMAL.test(raw.trim())) {
-    throw new Error(`第 ${rowNumber} 行 ${label} 必须是有限的非负数字`);
+  const message = `第 ${rowNumber} 行 ${label} 必须是有限的非负数字`;
+  const trimmed = (raw ?? "").trim().replace(/[\s\u00a0\u3000]/g, "");
+  if (trimmed === "") throw new Error(message);
+
+  // Only strip a currency marker at either edge; "1¥2" is malformed, not 12.
+  const withoutCurrency = trimmed.replace(CURRENCY_PREFIX, "").replace(CURRENCY_SUFFIX, "");
+  if (withoutCurrency === "") throw new Error(message);
+
+  let numeric = withoutCurrency.startsWith("+") ? withoutCurrency.slice(1) : withoutCurrency;
+  if (numeric.includes(",")) {
+    if (!GROUPED.test(numeric)) throw new Error(message);
+    numeric = numeric.replace(/,/g, "");
   }
-  const value = Number(raw.trim());
-  if (!Number.isFinite(value) || value < 0) {
-    throw new Error(`第 ${rowNumber} 行 ${label} 必须是有限的非负数字`);
-  }
+  if (!DECIMAL.test(numeric)) throw new Error(message);
+
+  const value = Number(numeric);
+  if (!Number.isFinite(value) || value < 0) throw new Error(message);
   return value;
 }
 

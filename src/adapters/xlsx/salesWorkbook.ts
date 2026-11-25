@@ -95,7 +95,10 @@ export function createSalesWorkbook(data: SalesData): XLSX.WorkBook {
 /** Browser-only entry point: enforce extension and size before parsing. */
 export async function readSalesFile(file: File): Promise<SalesData> {
   if (file.size > MAX_FILE_BYTES) throw new Error("文件不能超过 10 MiB");
-  if (!file.name.toLowerCase().endsWith(".xlsx")) throw new Error("只支持 .xlsx 文件");
+  // SheetJS reads both formats; the desktop dialog and accept list already
+  // advertise .xls, so accepting it here keeps the three routes consistent.
+  const lower = file.name.toLowerCase();
+  if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) throw new Error("只支持 .xlsx 或 .xls 文件");
   const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellFormula: true });
   return parseSalesWorkbook(workbook);
 }

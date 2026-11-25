@@ -107,6 +107,25 @@ describe("applyColumnMapping", () => {
     ).toThrow("第 2 行");
   });
 
+  it("accepts thousands separators and currency markers from real exports", () => {
+    const data = applyColumnMapping(
+      { ...canonical, rows: [["华东", "1,000", "¥1,200.50"], ["华西", "￥900", "$1,000"]] },
+      { region: 0, previous: 1, current: 2 },
+    );
+    expect(data.regions.map((r) => [r.previous, r.current])).toEqual([
+      [1000, 1200.5],
+      [900, 1000],
+    ]);
+  });
+
+  it("still rejects negatives, malformed separators and mid-string currency", () => {
+    for (const [previous, current] of [["-1", "5"], ["1,00", "5"], ["1¥2", "5"], ["5", "abc"]]) {
+      expect(() =>
+        applyColumnMapping({ ...canonical, rows: [["华东", previous, current]] }, { region: 0, previous: 1, current: 2 }),
+      ).toThrow("第 2 行");
+    }
+  });
+
   it("rejects duplicate names, empty data and invalid mappings", () => {
     expect(() =>
       applyColumnMapping({ ...canonical, rows: [["华东", "1", "2"], ["华东", "3", "4"]] }, { region: 0, previous: 1, current: 2 }),

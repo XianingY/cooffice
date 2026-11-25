@@ -38,7 +38,7 @@ export function FileImport({ onImport, onCsvInput, onError }: FileImportProps) {
       <input
         id="sales-file"
         type="file"
-        accept=".xlsx,.csv"
+        accept=".xlsx,.xls,.csv"
         disabled={busy}
         onChange={handleChange}
       />

@@ -114,8 +114,12 @@ describe("readSalesFile", () => {
   const fakeFile = (name: string, size: number) =>
     ({ name, size, arrayBuffer: async () => buffer }) as unknown as File;
 
-  it("rejects non-xlsx extensions", async () => {
-    await expect(readSalesFile(fakeFile("sales.csv", 100))).rejects.toThrow("只支持 .xlsx 文件");
+  it("accepts the legacy .xls extension that the desktop dialog advertises", async () => {
+    expect(await readSalesFile(fakeFile("sales.xls", buffer.byteLength))).toEqual(salesDemo);
+  });
+
+  it("rejects unsupported extensions", async () => {
+    await expect(readSalesFile(fakeFile("sales.csv", 100))).rejects.toThrow("只支持 .xlsx 或 .xls 文件");
   });
 
   it("rejects files larger than 10 MiB", async () => {
