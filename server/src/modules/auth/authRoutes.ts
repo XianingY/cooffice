@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { AppError } from "../../errors/AppError.js";
 import { parseBody } from "../../middleware/validate.js";
-import type { Env } from "../../config/env.js";
+import { ttlToMs, type Env } from "../../config/env.js";
 import { docsMeta } from "../../docs/openapi.js";
 import { UserRepository } from "./userRepository.js";
 import { AuthService } from "./authService.js";
@@ -28,7 +28,9 @@ function refreshCookieOptions(env: Env) {
     secure: env.COOKIE_SECURE,
     sameSite: "strict" as const,
     path: "/api/auth",
-    maxAge: 7 * 86400,
+    // Follow the configured token lifetime: a fixed 7 days would silently log
+    // users out early when JWT_REFRESH_TTL is longer.
+    maxAge: Math.floor(ttlToMs(env.JWT_REFRESH_TTL) / 1000),
     ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
   };
 }
@@ -44,7 +46,11 @@ export interface AuthRouteDeps {
 export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): Promise<void> {
   const guard = makeAuthGuard(deps.tokens);
 
-  app.post("/api/auth/register", { schema: docsMeta.register }, async (request, reply) => {
+  app.post("/api/auth/register", {
+    schema: docsMeta.register,
+    // Bulk account creation is cheap for an attacker and expensive for SQLite.
+    config: { rateLimit: { max: 10, timeWindow: "15m" } },
+  }, async (request, reply) => {
     const body = parseBody(registerSchema, request.body);
     const pair = await deps.service.register(body, request.requestId);
     void reply.setCookie(REFRESH_COOKIE, pair.refreshToken, refreshCookieOptions(deps.env));
@@ -61,7 +67,11 @@ export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDe
     return { accessToken: pair.accessToken, expiresIn: pair.expiresIn, user: pair.user };
   });
 
-  app.post("/api/auth/refresh", async (request, reply) => {
+  app.post("/api/auth/refresh", {
+    // Generous but bounded: one refresh per 15 minutes per active tab is the
+    // normal rate; unbounded rotation would let a client grow the table.
+    config: { rateLimit: { max: 120, timeWindow: "15m" } },
+  }, async (request, reply) => {
     const token = request.cookies?.[REFRESH_COOKIE];
     if (!token) throw AppError.unauthorized("Refresh cookie missing");
     const pair = await deps.service.refresh(token, request.requestId);

@@ -39,6 +39,15 @@ const schema = z.object({
 
 export type Env = z.infer<typeof schema> & { corsOriginList: string[] };
 
+const TTL_FACTORS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
+
+/** Parse "15m"/"7d" into milliseconds; cookie lifetime must match the token. */
+export function ttlToMs(ttl: string, fallbackMs = 7 * 86_400_000): number {
+  const match = /^(\d+)([smhd])$/.exec(ttl);
+  if (!match) return fallbackMs;
+  return Number(match[1]) * TTL_FACTORS[match[2] as keyof typeof TTL_FACTORS];
+}
+
 /**
  * Validate configuration once at startup and fail fast. Never log secret
  * values; only their presence is reported through the returned shape.

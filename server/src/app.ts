@@ -3,7 +3,7 @@ import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import { registerSecurity } from "./middleware/security.js";
 import rateLimit from "@fastify/rate-limit";
-import type { Env } from "./config/env.js";
+import { ttlToMs, type Env } from "./config/env.js";
 import { registerRequestLogging } from "./middleware/requestContext.js";
 import { registerErrorHandler } from "./middleware/errorHandler.js";
 import { openDatabase, type Db } from "./db/connection.js";
@@ -107,7 +107,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     audit,
     tokens,
     accessTtl: env.JWT_ACCESS_TTL,
-    refreshTtlMs: parseTtlMs(env.JWT_REFRESH_TTL),
+    refreshTtlMs: ttlToMs(env.JWT_REFRESH_TTL),
   });
 
   const projectRepo = new ProjectRepository(db);
@@ -130,7 +130,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerProjectFileRoutes, { service: projectService, tokens });
   await app.register(registerReportRoutes, { service: reportService, tokens });
-  await app.register(registerSseRoutes, { bus: eventBus, tokens, projects: projectService });
+  await app.register(registerSseRoutes, {
+    bus: eventBus,
+    tokens,
+    projects: projectService,
+    allowedOrigins: env.corsOriginList,
+  });
   await app.register(registerAuditRoutes, { repo: audit, tokens });
 
   // Background cleanup is idempotent and independent of request handling.
@@ -157,9 +162,3 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   return app;
 }
 
-function parseTtlMs(ttl: string): number {
-  const match = /^(\d+)([smhd])$/.exec(ttl);
-  if (!match) return 7 * 86400_000;
-  const factor = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[match[2] as "s" | "m" | "h" | "d"];
-  return Number(match[1]) * factor;
-}

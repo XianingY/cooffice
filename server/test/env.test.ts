@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadEnv } from "../src/config/env.js";
+import { loadEnv, ttlToMs } from "../src/config/env.js";
 
 const base = {
   JWT_SECRET: "a-long-random-development-secret-value",
@@ -14,6 +14,12 @@ describe("loadEnv", () => {
     expect(env.PORT).toBe(4000);
     expect(env.DATABASE_PATH).toBe("./data/whatif.db");
     expect(env.TRUST_PROXY).toBe(false);
+  });
+
+  it("converts TTL strings to milliseconds and falls back safely", () => {
+    expect(ttlToMs("15m")).toBe(900_000);
+    expect(ttlToMs("30d")).toBe(2_592_000_000);
+    expect(ttlToMs("nonsense")).toBe(7 * 86_400_000);
   });
 
   it("enables proxy-aware rate-limit keys only via an explicit flag", () => {
