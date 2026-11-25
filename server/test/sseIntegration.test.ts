@@ -45,4 +45,51 @@ describe("SSE integration", () => {
     expect(received[0].type).toBe("project.updated");
     unsubscribe();
   });
+
+  it("refuses to stream a project owned by another user", async () => {
+    db = openDatabase(":memory:");
+    app = await buildApp({ env, db });
+    await app.ready();
+
+    const register = async (email: string) => {
+      const response = await app!.inject({
+        method: "POST",
+        url: "/api/auth/register",
+        payload: { email, password: "password123", displayName: "SSE" },
+      });
+      return response.json().accessToken as string;
+    };
+    const ownerToken = await register("owner@test.dev");
+    const intruderToken = await register("intruder@test.dev");
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/projects",
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { name: "Private", baseline: data },
+    });
+    const id = created.json().id as string;
+
+    const bus = (app as FastifyInstance & { eventBus?: EventBus }).eventBus;
+    const received: DomainEvent[] = [];
+    const unsubscribe = bus!.subscribe(id, (e) => received.push(e));
+
+    const forbidden = await app.inject({
+      method: "GET",
+      url: `/api/projects/${id}/events`,
+      headers: { authorization: `Bearer ${intruderToken}`, accept: "text/event-stream" },
+    });
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json().error.message).toMatch(/another user/i);
+
+    await app.inject({
+      method: "PATCH",
+      url: `/api/projects/${id}`,
+      headers: { authorization: `Bearer ${ownerToken}` },
+      payload: { name: "Still private" },
+    });
+    // The intruder never obtained a subscription; only the direct bus probe sees it.
+    expect(received).toHaveLength(1);
+    unsubscribe();
+  });
 });

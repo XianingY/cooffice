@@ -122,7 +122,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerProjectFileRoutes, { service: projectService, tokens });
   await app.register(registerReportRoutes, { service: reportService, tokens });
-  await app.register(registerSseRoutes, { bus: eventBus, tokens });
+  await app.register(registerSseRoutes, { bus: eventBus, tokens, projects: projectService });
   await app.register(registerAuditRoutes, { repo: audit, tokens });
 
   // Background cleanup is idempotent and independent of request handling.

@@ -1,11 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { EventBus } from "./eventBus.js";
-import { makeAuthGuard } from "../modules/auth/authMiddleware.js";
+import { currentUserId, makeAuthGuard } from "../modules/auth/authMiddleware.js";
 import type { TokenService } from "../modules/auth/tokens.js";
+import type { ProjectService } from "../modules/projects/projectService.js";
 
 export interface SseRouteOptions {
   bus: EventBus;
   tokens: TokenService;
+  /** Ownership checks must use the same service as the project routes. */
+  projects: ProjectService;
 }
 
 /** SSE endpoint streams project-scoped events with heartbeats and cleanup. */
@@ -13,11 +16,15 @@ export async function registerSseRoutes(
   app: FastifyInstance,
   options: SseRouteOptions,
 ): Promise<void> {
-  const { bus, tokens } = options;
+  const { bus, tokens, projects } = options;
   const guard = makeAuthGuard(tokens);
 
   app.get("/api/projects/:id/events", { preHandler: guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
+    // Verify ownership before hijacking: an authenticated user must not be
+    // able to stream another user's project changes. Service.get() throws 404
+    // for unknown ids and 403 for foreign projects.
+    projects.get(currentUserId(request), id);
     reply.hijack();
     const raw = reply.raw;
 
