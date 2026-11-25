@@ -55,6 +55,35 @@ jobs:
       - run: npm run build
       - run: node dist/index.js & sleep 2 && curl -sf http://127.0.0.1:3001/health && curl -sf http://127.0.0.1:3001/ready
 
+  fullstack:
+    # Real Fastify API + SQLite + Vite, so auth and project flows get a PR gate.
+    # The startup script owns its own ports and SQLite file.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm --prefix server ci
+      - run: npx playwright install --with-deps chromium
+      - name: full-stack end-to-end
+        run: npm run test:e2e:full
+      - name: keep failure context
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fullstack-e2e-failure
+          path: |
+            test-results
+            playwright-report
+          retention-days: 7
+
   desktop:
     # Electron needs a display server; xvfb provides one for the E2E run.
     runs-on: ubuntu-latest

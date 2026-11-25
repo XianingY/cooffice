@@ -11,6 +11,10 @@ npm run desktop:test    # 桌面主进程类型检查 + 单测
 npm run test:e2e:desktop # 真实 Electron 端到端(受限环境加 WHATIF_E2E_NO_SANDBOX=1)
 ```
 
+CI 的 `fullstack` job 在每次 push/PR 运行 `test:e2e:full`（真实 Fastify + SQLite + Vite），
+因此认证与项目流程的集成回归有 PR 门禁。`npm run verify` 只覆盖 web 与 API 的本地门禁，
+桌面与全栈 E2E 需要分别执行上面的命令。
+
 ## 最近一次通过结果(2026-11-24)
 
 | 检查 | 结果 |
