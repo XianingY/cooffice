@@ -10,14 +10,23 @@
 
 ## 本地环境
 
-首版使用 Node.js 22 和 npm。克隆仓库后使用：
+需要 Node.js 22+ 与 npm。纯前端只需要根依赖：
 
 ```bash
 npm ci
 npm run dev
 ```
 
-首次运行端到端测试前需执行 `npx playwright install chromium`。修改示例数据或模板时，需运行 `npm run example:generate` 重新生成 `public/templates` 下的虚构文件。提交前必须通过：
+全栈或桌面改动还需要各自的依赖与原生编译链（better-sqlite3 需要 Python 与 C++ 工具链）：
+
+```bash
+npm --prefix server ci                    # 后端
+cp server/.env.example server/.env        # 写入开发用 JWT_SECRET
+npm run server:migrate                    # 初始化 SQLite
+npm --prefix desktop install              # 桌面壳（含 Electron）
+```
+
+首次运行浏览器/桌面端到端测试前需执行 `npx playwright install --with-deps chromium`（Linux 上缺少 `--with-deps` 会因系统库不全而失败）。修改示例数据或模板时，需运行 `npm run example:generate` 重新生成 `public/templates` 下的虚构文件。提交前必须通过：
 
 ```bash
 npm run typecheck
@@ -25,6 +34,8 @@ npm test
 npm run test:e2e
 npm run build
 ```
+
+改动后端时再跑 `npm --prefix server test`；改动桌面时跑 `npm run desktop:test` 与 `npm run test:e2e:desktop`；改动前后端契约时跑 `npm run test:e2e:full`（CI 也会跑）。
 
 如果只修改文档，可以不运行浏览器测试，但应检查链接、文件路径和事实表述。
 

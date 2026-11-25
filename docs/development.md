@@ -64,7 +64,7 @@ npm run test:e2e:desktop    # 真实 Electron 端到端
 npm run verify              # web + API 门禁;桌面与全栈 E2E 不在其中
 ```
 
-当前基线:348 项根 Vitest、126 项后端 Vitest、13 项前端 E2E、2 项全栈 E2E、58 项桌面单测、14 项 Electron E2E 全部通过。全栈 E2E 已进入 CI；`npm run verify` 不含桌面与全栈 E2E，需单独执行。
+当前基线:364 项根 Vitest、132 项后端 Vitest、13 项前端 E2E、2 项全栈 E2E、61 项桌面单测、14 项 Electron E2E 全部通过。全栈 E2E 已进入 CI；`npm run verify` 不含桌面与全栈 E2E，需单独执行。
 
 ## 代码约束
 
@@ -83,5 +83,5 @@ npm run verify              # web + API 门禁;桌面与全栈 E2E 不在其中
 ## 发布
 
 - `ci`:并行执行 web 与 api 校验,api 任务含启动健康检查冒烟。
-- `deploy`:版本标签触发,构建前后端并部署到 GitHub Pages(纯前端模式)。
+- `deploy`:版本标签触发,只构建前端并部署到 GitHub Pages(纯前端模式,不构建后端)。
 - 容器部署见 [部署指南](deployment.md)。

@@ -2,7 +2,7 @@
 
 一个**本地优先、可选云端**的全栈工具:导入固定格式的 Excel/CSV,在浏览器中试改数据,查看指标和报告结论的变化,确认后导出新的 Excel 和 Word。登录后可把项目保存到 SQLite 后端,跨设备继续工作;不登录也能完成全部本地功能。
 
-> **项目状态:v1.5.0。** 前端、后端、认证、数据库、API、实时通知、CI、容器部署与**桌面应用**均已实现并通过本地、端到端与打包冒烟验证。
+> **项目状态:v1.6.0。** 前端、后端、认证、数据库、API、实时通知、CI、容器部署与**桌面应用**均已实现并通过本地、端到端与打包冒烟验证。
 
 ![三栏影响预览:编辑华东当前值后,指标、排名与报告结论同步变化并高亮来源](docs/screenshot.png)
 
@@ -83,13 +83,13 @@ docker compose up -d --build
 
 ```bash
 npm run typecheck       # 前端类型
-npm test                # 全部 Vitest(前端+后端+桌面,348 项)
+npm test                # 全部 Vitest(前端+后端+桌面,364 项)
 npm run test:e2e        # 前端浏览器测试(13 项)
 npm run test:e2e:full   # 全栈浏览器测试(真实后端 + SQLite)
 npm run build           # 前端生产构建
 npm run server:build    # 后端编译
 npm run smoke           # 构建并启动后端做端点冒烟
-npm run desktop:test    # 桌面主进程类型检查 + 单测(55 项)
+npm run desktop:test    # 桌面主进程类型检查 + 单测(61 项)
 npm run test:e2e:desktop # 真实 Electron 端到端(14 项)
 npm run verify          # web + API 门禁(typecheck/单测/浏览器 E2E/构建);桌面与全栈 E2E 单独跑
 

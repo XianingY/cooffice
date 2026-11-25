@@ -1,7 +1,8 @@
 {
   "name": "what-if-report",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
+  "engines": { "node": ">=22" },
   "type": "module",
   "scripts": {
     "dev": "vite",

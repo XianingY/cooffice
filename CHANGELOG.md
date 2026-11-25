@@ -2,6 +2,43 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [1.6.0] - 2026-11-25（P0/P1/P2 加固）
+
+### Fixed
+
+- **SSE 越权**：`/api/projects/:id/events` 订阅前校验项目归属，越权返回 403，未知项目 404；补充双用户回归测试。
+- **生产包 DevTools**：`webPreferences.devTools` 跟随 `isDev`，打包版本不能再从控制台读取会话令牌。
+- **反代限流**：新增 `TRUST_PROXY`，nginx 拓扑下限流键改用其覆盖写入的 `X-Real-IP`，不再全员共用一个桶；伪造 `X-Forwarded-For` 不生效。
+- **Web 无 CSP**：nginx 下发与 `SPA_CSP` 逐字一致的策略，并加一致性测试防漂移。
+- **刷新令牌复用**：重放已轮换令牌会撤销该账号全部会话并记 `token_reuse_detected`；改密码立即吊销所有刷新令牌。
+- **乐观锁**：项目更新把读取到的版本下推到 `UPDATE ... WHERE version = ?`，并发写入不再同时成功。
+- **保存非原子**：桌面导出改为临时文件 + rename，崩溃不会留下截断文档。
+- **单实例竞态**：第二实例在窗口未就绪时也保留传入的 `.json`，冷启动不再丢文件。
+- **关闭丢失草稿**：存在未应用草稿时关闭窗口先确认。
+- **更新链路**：`WHATIF_RELEASE_URL` 提供可点击下载页；打包脚本断言 `latest-mac.yml` 与 `package.json` 版本一致。
+- **编辑静默吞值**：负数/空值保留输入并给出行内错误，不再弹回或自动写成 0。
+- **导入格式**：CSV 支持千分位与货币符号；`.xls` 在文件选择、桌面对话框与解析器三处一致。
+- **Cookie 生命周期**：`Max-Age` 由 `JWT_REFRESH_TTL` 推导；`register`/`refresh` 增加限流；compose 默认 `COOKIE_SECURE=true`。
+- **健康检查**：nginx `/health` 代理到 API，后端宕机时容器判为 unhealthy。
+
+### Added
+
+- 导出来源切换：已确认版 / 草稿版，草稿使用独立文件名，不再需要先应用而丢失基线。
+- 导入覆盖确认：文件选择、拖拽、原生对话框、云端打开四条路径统一确认。
+- 云面板接入 SSE 实时刷新；云项目导出走统一保存通道。
+- 图表提供隐藏数据表、影响列表播报、四个对话框统一焦点陷阱与 Escape。
+- CI 新增全栈 E2E job 与全历史 gitleaks 门禁。
+- gitleaks 基线由逐条 commit 指纹改为路径+正则白名单（`.gitleaks.toml`），新增测试文件不再需要补指纹。
+
+### Changed
+
+- 根 Vitest 超时提高到 20s：并行跑全仓时 jsdom/userEvent 用例会超过默认 5s，此前产生过与代码无关的失败。
+
+### Verified
+
+- 根 Vitest：85 文件 / 364 项；后端：38 文件 / 132 项；桌面单测：12 文件 / 61 项。
+- 浏览器 E2E 13 项、全栈 E2E 2 项、Electron E2E 14 项通过；`gitleaks detect --log-opts=--all` 0 findings。
+
 ## [1.5.0] - 2026-11-24（文件关联与分发准备）
 
 ### Added

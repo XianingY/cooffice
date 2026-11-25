@@ -128,7 +128,7 @@ WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需�
 
 端到端用例驱动的是真实 Electron 进程：窗口与页面渲染、`window.desktop` 桥、内嵌 API 的 origin、编辑/应用草稿、经 IPC 落盘、刷新后本地草稿仍在、profile 目录生成 SQLite 与密钥。
 
-当前基线：**桌面单测 55 项、Electron E2E 14 项、根 Vitest 332 项、后端 Vitest 120 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
+当前基线：**桌面单测 61 项、Electron E2E 14 项、根 Vitest 364 项、后端 Vitest 132 项、浏览器 E2E 13 项、全栈 E2E 2 项**全部通过。
 
 E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、主题切换与持久化、内嵌 API 的 origin、经令牌守卫的注册、草稿编辑与应用、未保存标记、菜单指令回传、经 IPC 落盘、刷新后本地草稿仍在、拖拽导入项目、拒绝不支持的拖入文件、profile 目录生成、窗口位置跨重启恢复。
 
