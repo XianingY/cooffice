@@ -61,10 +61,10 @@ npm run desktop:stage       # 构建前端+后端并按 Electron ABI 准备运�
 npm run desktop:start       # 启动桌面应用
 npm run desktop:test        # 桌面主进程类型检查 + 单测
 npm run test:e2e:desktop    # 真实 Electron 端到端
-npm run verify              # 顺序执行上述全部门禁
+npm run verify              # web + API 门禁;桌面与全栈 E2E 不在其中
 ```
 
-当前基线:233 项根 Vitest、90 项后端 Vitest、13 项前端 E2E、2 项全栈 E2E 全部通过。
+当前基线:348 项根 Vitest、126 项后端 Vitest、13 项前端 E2E、2 项全栈 E2E、58 项桌面单测、14 项 Electron E2E 全部通过。全栈 E2E 已进入 CI；`npm run verify` 不含桌面与全栈 E2E，需单独执行。
 
 ## 代码约束
 

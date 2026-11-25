@@ -83,7 +83,7 @@ docker compose up -d --build
 
 ```bash
 npm run typecheck       # 前端类型
-npm test                # 全部 Vitest(前端+后端,312 项)
+npm test                # 全部 Vitest(前端+后端+桌面,348 项)
 npm run test:e2e        # 前端浏览器测试(13 项)
 npm run test:e2e:full   # 全栈浏览器测试(真实后端 + SQLite)
 npm run build           # 前端生产构建
@@ -91,7 +91,7 @@ npm run server:build    # 后端编译
 npm run smoke           # 构建并启动后端做端点冒烟
 npm run desktop:test    # 桌面主进程类型检查 + 单测(55 项)
 npm run test:e2e:desktop # 真实 Electron 端到端(14 项)
-npm run verify          # 顺序执行全部门禁
+npm run verify          # web + API 门禁(typecheck/单测/浏览器 E2E/构建);桌面与全栈 E2E 单独跑
 
 验收基线与覆盖范围见 [验证记录](docs/verification.md)。
 ```
