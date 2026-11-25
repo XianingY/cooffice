@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 test("report config persists in the project file and chart reflects edits", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "各区域当前销售额" })).toBeVisible();
-  await expect(page.getByRole("img", { name: /各区域当前销售额/ })).toContainText("华东");
+  await expect(page.getByRole("table", { name: /各区域当前销售额/ })).toContainText("华东");
 
   const config = page.getByRole("group", { name: "报告块配置" });
   await config.getByRole("checkbox", { name: "显示同比增长率" }).uncheck();

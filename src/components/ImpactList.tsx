@@ -16,6 +16,12 @@ export function ImpactList({ impacts, selectedImpactId, onSelect }: ImpactListPr
   return (
     <section className="panel" aria-labelledby="impact-list-title">
       <h2 id="impact-list-title">影响列表</h2>
+      {/* Editing a cell changes this list without moving focus, so announce it. */}
+      <p className="visually-hidden" aria-live="polite">
+        {impacts.length === 0
+          ? "影响列表已更新，当前没有影响项"
+          : `影响列表已更新，共 ${impacts.length} 项，首项 ${impacts[0].label}：${impacts[0].before} 到 ${impacts[0].after}`}
+      </p>
       {impacts.length === 0 ? (
         <p className="empty">当前草稿与已确认版本一致，暂无影响项。</p>
       ) : (

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ColumnMapping, TabularInput } from "../core/types";
+import { Dialog } from "./Dialog";
 
 interface ColumnMappingDialogProps {
   input: TabularInput;
@@ -19,57 +20,56 @@ export function ColumnMappingDialog({ input, suggested, onConfirm, onCancel }: C
   const preview = input.rows.slice(0, 3);
 
   return (
-    <div className="dialog-backdrop">
-      <div role="dialog" aria-modal="true" aria-labelledby="mapping-dialog-title" className="dialog">
-        <h2 id="mapping-dialog-title">确认列映射</h2>
-        <p id="mapping-dialog-description">
-          检测到以下列,请确认每列对应的含义。原始数据不会被修改。
-        </p>
-        <div className="mapping-fields">
-          {FIELDS.map(({ key, label }) => (
-            <label key={key}>
-              {label}
-              <select
-                aria-label={`${label}所在列`}
-                value={mapping[key]}
-                onChange={(event) => setMapping({ ...mapping, [key]: Number(event.target.value) })}
-              >
-                {input.headers.map((header, index) => (
-                  <option key={`${index}-${header}`} value={index}>
-                    {header || `第 ${index + 1} 列`}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-        <table className="mapping-preview">
-          <thead>
-            <tr>
-              <th>区域</th>
-              <th>上期</th>
-              <th>当前</th>
-            </tr>
-          </thead>
-          <tbody>
-            {preview.map((row, index) => (
-              <tr key={index}>
-                <td>{row[mapping.region]}</td>
-                <td>{row[mapping.previous]}</td>
-                <td>{row[mapping.current]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="dialog-actions">
-          <button type="button" onClick={onCancel}>
-            取消映射
-          </button>
-          <button type="button" className="primary" onClick={() => onConfirm(mapping)}>
-            确认映射并导入
-          </button>
-        </div>
+    <Dialog labelledBy="mapping-dialog-title" describedBy="mapping-dialog-description" onClose={onCancel}>
+      <h2 id="mapping-dialog-title">确认列映射</h2>
+      <p id="mapping-dialog-description">
+        检测到以下列,请确认每列对应的含义。原始数据不会被修改。
+      </p>
+      <div className="mapping-fields">
+        {FIELDS.map(({ key, label }, index) => (
+          <label key={key}>
+            {label}
+            <select
+              aria-label={`${label}所在列`}
+              data-autofocus={index === 0 ? true : undefined}
+              value={mapping[key]}
+              onChange={(event) => setMapping({ ...mapping, [key]: Number(event.target.value) })}
+            >
+              {input.headers.map((header, columnIndex) => (
+                <option key={`${columnIndex}-${header}`} value={columnIndex}>
+                  {header || `第 ${columnIndex + 1} 列`}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
       </div>
-    </div>
+      <table className="mapping-preview">
+        <thead>
+          <tr>
+            <th>区域</th>
+            <th>上期</th>
+            <th>当前</th>
+          </tr>
+        </thead>
+        <tbody>
+          {preview.map((row, index) => (
+            <tr key={index}>
+              <td>{row[mapping.region]}</td>
+              <td>{row[mapping.previous]}</td>
+              <td>{row[mapping.current]}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="dialog-actions">
+        <button type="button" onClick={onCancel}>
+          取消映射
+        </button>
+        <button type="button" className="primary" onClick={() => onConfirm(mapping)}>
+          确认映射并导入
+        </button>
+      </div>
+    </Dialog>
   );
 }

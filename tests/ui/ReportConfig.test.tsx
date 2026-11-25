@@ -9,7 +9,8 @@ describe("report configuration UI", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "各区域当前销售额" })).toBeInTheDocument();
-    const chart = screen.getByRole("img", { name: /各区域当前销售额/ });
+    // The visual bars are decorative; the table is the accessible data source.
+    const chart = screen.getByRole("table", { name: /各区域当前销售额/ });
     expect(chart.textContent).toContain("华东");
 
     const config = screen.getByRole("group", { name: "报告块配置" });

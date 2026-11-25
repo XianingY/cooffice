@@ -186,12 +186,34 @@ body {
   color: var(--on-danger);
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .visually-hidden-input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
+}
+
+/* The file input is visually hidden, so its label carries the focus ring. */
+.button-link:has(.visually-hidden-input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chart-figure {
+  margin: 0;
 }
 
 .mapping-fields {
