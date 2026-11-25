@@ -11,11 +11,16 @@ async function readEventually(file: string, timeoutMs = 3000): Promise<string> {
   const started = Date.now();
   for (;;) {
     try {
-      return readFileSync(file, "utf8");
+      const text = readFileSync(file, "utf8");
+      // pino creates the file before flushing, so an empty read is not a hit.
+      if (text.trim() !== "") return text;
     } catch (error) {
       if (Date.now() - started > timeoutMs) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 20));
     }
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(`log file stayed empty: ${file}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
 
