@@ -9,6 +9,27 @@ export interface SseRouteOptions {
   tokens: TokenService;
   /** Ownership checks must use the same service as the project routes. */
   projects: ProjectService;
+  /**
+   * Origins allowed to read the stream. `reply.hijack()` bypasses Fastify's
+   * CORS hook, so the response headers are written here instead.
+   */
+  allowedOrigins: string[];
+}
+
+/**
+ * CORS headers for the hijacked stream. Only echoes an origin the deployment
+ * already allows; anything else gets no header and the browser blocks it.
+ */
+export function sseCorsHeaders(
+  origin: string | undefined,
+  allowedOrigins: string[],
+): Record<string, string> {
+  if (origin === undefined || !allowedOrigins.includes(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    Vary: "Origin",
+  };
 }
 
 /** SSE endpoint streams project-scoped events with heartbeats and cleanup. */
@@ -16,7 +37,7 @@ export async function registerSseRoutes(
   app: FastifyInstance,
   options: SseRouteOptions,
 ): Promise<void> {
-  const { bus, tokens, projects } = options;
+  const { bus, tokens, projects, allowedOrigins } = options;
   const guard = makeAuthGuard(tokens);
 
   app.get("/api/projects/:id/events", { preHandler: guard }, async (request, reply) => {
@@ -29,6 +50,7 @@ export async function registerSseRoutes(
     const raw = reply.raw;
 
     raw.writeHead(200, {
+      ...sseCorsHeaders(request.headers.origin, allowedOrigins),
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",

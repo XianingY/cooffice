@@ -19,6 +19,9 @@ test("register, log in and save a project through the real backend", async ({ pa
   await page.getByLabel("项目名称").fill("E2E Smoke Project");
   await page.getByRole("button", { name: "保存到云端" }).click();
   await expect(page.getByText("E2E Smoke Project")).toBeVisible();
+  // The SSE subscription is authorised by the same bearer token and confirms
+  // the events endpoint accepts the project owner.
+  await expect(page.getByText("实时同步已连接")).toBeVisible();
 
   // Edit a value, then update the cloud project.
   await page.getByLabel("华东当前销售额").fill("90");

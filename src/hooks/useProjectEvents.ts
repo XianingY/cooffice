@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "../api/factory";
 import { tokenStore } from "../auth/tokenStore";
 import { sessionHeaders } from "../desktop/bridge";
 
@@ -24,7 +25,7 @@ export function useProjectEvents(projectId: string | null, onEvent: () => void) 
       if (disposed) return;
       controller = new AbortController();
       try {
-        const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/events`, {
+        const response = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectId)}/events`), {
           headers: { Authorization: `Bearer ${tokenStore.get() ?? token}`, ...sessionHeaders() },
           signal: controller.signal,
           credentials: "include",

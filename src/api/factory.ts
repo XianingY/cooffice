@@ -29,6 +29,11 @@ const runtimeBase =
 export const cloudEnabled = runtimeBase.length > 0 || configuredBase.length > 0;
 const baseUrl = runtimeBase || configuredBase;
 
+/** Absolute URL for a path on the configured API, used by fetch-based SSE. */
+export function apiUrl(path: string): string {
+  return `${baseUrl}${path}`;
+}
+
 const client = new ApiClient({
   baseUrl,
   getAccessToken: () => tokenStore.get(),

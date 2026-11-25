@@ -3,6 +3,8 @@ import { api, cloudEnabled } from "../api/factory";
 import { useAuth } from "../auth/AuthProvider";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useCloudProject } from "../hooks/useCloudProject";
+import { useProjectEvents } from "../hooks/useProjectEvents";
+import { saveBlob } from "../desktop/bridge";
 import type { ReportConfig, SalesData } from "../core/types";
 import { AuthForms } from "./AuthForms";
 import { ProfilePanel } from "./ProfilePanel";
@@ -23,6 +25,9 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
   const [name, setName] = useState("未命名项目");
   const [refreshKey, setRefreshKey] = useState(0);
   const [exportError, setExportError] = useState("");
+  // The API publishes every successful mutation on this project, so a second
+  // session (or another device) refreshes the list without a manual reload.
+  const liveConnected = useProjectEvents(cloud.projectId, () => setRefreshKey((key) => key + 1));
 
   const handleSave = async () => {
     await cloud.save(name, baseline, draft, config);
@@ -34,12 +39,14 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
     try {
       const projectDocument = await api.projects.exportFile(cloud.projectId);
       const blob = new Blob([JSON.stringify(projectDocument, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = "what-if-report-project.json";
-      anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      // Same save path as every other export: the desktop shell shows a native
+      // dialog instead of silently dropping the file into the download folder.
+      const outcome = await saveBlob(blob, {
+        suggestedName: "what-if-report-project.json",
+        filterName: "What-if 项目",
+        extensions: ["json"],
+      });
+      if (!outcome.saved) setExportError(outcome.error ?? "");
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "导出项目文件失败");
     }
@@ -73,7 +80,12 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
             </button>
           </div>
           {cloud.projectId ? (
-            <button type="button" onClick={() => void handleExportFile()}>导出云项目文件</button>
+            <>
+              <button type="button" onClick={() => void handleExportFile()}>导出云项目文件</button>
+              {liveConnected ? (
+                <p className="hint" aria-live="polite">实时同步已连接</p>
+              ) : null}
+            </>
           ) : null}
           {cloud.error || error || exportError ? (
             <p role="alert" className="status-error">{cloud.error || error || exportError}</p>
