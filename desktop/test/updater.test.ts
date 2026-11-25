@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolveUpdateFeed, runUpdateCheck, type UpdaterLike } from "../src/main/updater.js";
+import { resolveReleaseUrl, resolveUpdateFeed, runUpdateCheck, type UpdaterLike } from "../src/main/updater.js";
 
 function updaterWith(version?: string, failure?: Error): UpdaterLike {
   return {
@@ -41,6 +41,14 @@ describe("update checks", () => {
     expect(resolveUpdateFeed({ WHATIF_UPDATE_FEED: "http://example.com" })).toBeNull();
     expect(resolveUpdateFeed({ WHATIF_UPDATE_FEED: "https://updates.example.com/app" })).toBe(
       "https://updates.example.com/app",
+    );
+  });
+
+  it("accepts a release page only over https", () => {
+    expect(resolveReleaseUrl({})).toBeNull();
+    expect(resolveReleaseUrl({ WHATIF_RELEASE_URL: "http://example.com/download" })).toBeNull();
+    expect(resolveReleaseUrl({ WHATIF_RELEASE_URL: "https://example.com/download" })).toBe(
+      "https://example.com/download",
     );
   });
 });

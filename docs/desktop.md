@@ -70,7 +70,9 @@ What-if Report.app/Contents/Resources/
 | 单实例 | 再次启动会聚焦已有窗口，并把命令行传入的项目文件交给当前实例 |
 | 文档关联 | 双击 `.json` 项目文件即可唤起应用并载入；macOS 写入 `CFBundleDocumentTypes`，Windows 在 per-machine 安装时写入注册表；Linux AppImage 需自行设置默认应用。未保存改动在关闭按钮上显示圆点 |
 | 外链安全 | `window.open`、非本应用跳转一律拦截并交给系统浏览器；相机/麦克风/定位/录屏权限全部拒绝 |
-| 更新检查 | 「检查更新…」读取 `WHATIF_UPDATE_FEED`（仅 https），未配置时如实提示而非假装已检查 |
+| 更新检查 | 「检查更新…」读取 `WHATIF_UPDATE_FEED`（仅 https）；发现新版时若配置了 `WHATIF_RELEASE_URL` 可直接打开下载页，未配置则如实说明需手动获取 |
+| 关闭保护 | 存在未应用草稿时关闭窗口会先确认；「取消」留在应用，「放弃修改并关闭」才丢弃 |
+| 原子保存 | 导出先写同目录临时文件再 rename 到目标路径，崩溃或断电不会留下截断文档 |
 | 崩溃可诊断 | 渲染进程日志经 IPC 落到主进程日志文件，用户反馈问题时可直接提供日志目录 |
 | 升级可回滚 | schema 有变更前用 SQLite 在线备份 API 快照到 `backups/`，保留最近 5 份；失败只告警不阻塞启动 |
 | 能力收敛 | Electron fuses 关闭 `runAsNode`/`NODE_OPTIONS`/CLI inspect/额外 file 权限，开启 Cookie 加密、asar 完整性校验 |
@@ -112,12 +114,14 @@ node desktop/scripts/package.mjs --mac arm64
 
 1. 从手动 `release` job 的构建产物（或本地 `desktop/release/`）取出 `latest-mac.yml`、`.dmg`、`.zip`、`.blockmap`，上传到你控制的静态站点；
 2. 用 `WHATIF_UPDATE_FEED=https://你的域名/releases` 启动，或直接改 `electron-builder.yml` 的 `publish.url`；
-3. 「检查更新…」会比对版本并在有新版时提示下载地址。当前不做静默自动安装，避免在未签名的开发构建上误触发。
+3. 用 `WHATIF_RELEASE_URL=https://你的域名/download` 指定下载页，「检查更新…」发现新版时会提供「打开下载页」按钮；
+4. 打包脚本会断言 `latest-mac.yml` 的版本与 `package.json` 一致，避免把旧版本的哈希传上更新源。
+当前不做静默自动安装，避免在未签名的开发构建上误触发。
 
 ## 验证
 
 ```bash
-npm run verify:desktop              # 主进程类型检查 + 55 项单测
+npm run verify:desktop              # 主进程类型检查 + 61 项单测
 npm run test:e2e:desktop            # 14 项真实 Electron 端到端
 WHATIF_E2E_NO_SANDBOX=1 npm run test:e2e:desktop   # 受限沙箱/容器内需要关闭 Chromium 沙箱
 ```

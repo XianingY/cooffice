@@ -10,7 +10,7 @@ import { isExternalUrlAllowed, registerIpcHandlers, sendMenuAction } from "./ipc
 import { isReadableProjectPath, takeProjectArgument } from "./cli.js";
 import { resolveResources, type ResourcePaths } from "./paths.js";
 import { RecentFilesStore } from "./recentFiles.js";
-import { resolveUpdateFeed, runUpdateCheck } from "./updater.js";
+import { resolveReleaseUrl, resolveUpdateFeed, runUpdateCheck } from "./updater.js";
 import { normaliseTheme, resolveTheme, ThemeStore } from "./theme.js";
 
 const APP_NAME = "What-if Report";
@@ -35,6 +35,10 @@ let logger: ShellLogger | null = null;
 let origin = "";
 let quitting = false;
 let pendingProjectPath: string | null = null;
+/** Mirrors renderer state: a draft exists that applying/closing would discard. */
+let documentEdited = false;
+/** Set once the user accepts losing the draft, so close() can proceed. */
+let discardConfirmed = false;
 let themeStore: ThemeStore | null = null;
 let recentStore: RecentFilesStore | null = null;
 
@@ -114,7 +118,7 @@ function shortcutsMessage(): string {
     "⌘E  导出 Excel",
     "⇧⌘E 导出 Word",
     "",
-    "编辑单元格后使用「应用修改」确认；导出始终使用已确认版本。",
+    "编辑单元格后使用「应用修改」确认；导出可在工具栏选择已确认版或草稿版。",
   ].join("\n");
 }
 
@@ -138,19 +142,27 @@ function refreshMenu(recent: RecentFilesStore): void {
       refreshMenu(recent);
     },
     onCheckForUpdates: () => {
-      void checkForUpdates().then((result) => {
+      void checkForUpdates().then(async (result) => {
+        const releaseUrl = resolveReleaseUrl();
+        const canDownload = result.status === "available" && releaseUrl !== null;
         const detail =
           result.status === "available"
-            ? `发现新版本 ${result.version}，请前往发布页下载。`
+            ? canDownload
+              ? `发现新版本 ${result.version}，可在发布页下载安装包。`
+              : `发现新版本 ${result.version}。本构建未配置发布页，请手动获取安装包。`
             : result.status === "up-to-date"
               ? `已是最新版本（${result.version}）。`
               : (result.message ?? "当前构建未配置更新源。");
-        dialog.showMessageBox({
+        const buttons = canDownload ? ["打开下载页", "稍后"] : ["好"];
+        const { response } = await dialog.showMessageBox({
           type: "info",
           title: "检查更新",
           message: detail,
-          buttons: ["好"],
+          buttons,
+          defaultId: 0,
+          cancelId: buttons.length - 1,
         });
+        if (canDownload && response === 0) openExternal(releaseUrl);
       });
     },
     onOpenDataDir: () => void shell.openPath(resolveResourcesPaths().dataDir),
@@ -201,6 +213,10 @@ async function bootstrap(): Promise<void> {
     setTheme: applyThemeSetting,
     checkForUpdates,
     openExternal,
+    setDocumentEdited: (dirty) => {
+      documentEdited = dirty;
+      mainWindow?.setDocumentEdited(dirty);
+    },
   });
 
   mainWindow = openWindow(paths);
@@ -221,7 +237,21 @@ function openPendingProject(): void {
 }
 
 /** Create (or re-create after macOS ⌘W) the single application window. */
+function confirmDiscard(window: BrowserWindow): boolean {
+  const choice = dialog.showMessageBoxSync(window, {
+    type: "warning",
+    title: "未保存的修改",
+    message: "当前草稿尚未应用。",
+    detail: "关闭窗口会丢弃这些修改；如需保留，请先点「应用修改」或导出草稿。",
+    buttons: ["取消", "放弃修改并关闭"],
+    defaultId: 0,
+    cancelId: 0,
+  });
+  return choice === 1;
+}
+
 function openWindow(paths: ResourcePaths): BrowserWindow {
+  discardConfirmed = false;
   const window = createMainWindow({
     origin,
     preloadPath: join(__dirname, "..", "preload", "index.js"),
@@ -230,8 +260,17 @@ function openWindow(paths: ResourcePaths): BrowserWindow {
     isDev: !app.isPackaged,
     openExternal,
   });
+  window.on("close", (event) => {
+    if (!documentEdited || discardConfirmed) return;
+    event.preventDefault();
+    if (confirmDiscard(window)) {
+      discardConfirmed = true;
+      window.close();
+    }
+  });
   window.on("closed", () => {
     mainWindow = null;
+    documentEdited = false;
   });
   return window;
 }
@@ -249,14 +288,15 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", (_event, argv) => {
+    // Remember the path before checking the window: during a slow first
+    // bootstrap the window does not exist yet, and returning early would drop
+    // the document the user just double-clicked.
+    const filePath = takeProjectArgument(argv);
+    if (filePath) pendingProjectPath = filePath;
     if (!mainWindow) return;
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
-    const filePath = takeProjectArgument(argv);
-    if (filePath) {
-      pendingProjectPath = filePath;
-      openPendingProject();
-    }
+    openPendingProject();
   });
 
   app.whenReady().then(

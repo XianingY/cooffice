@@ -10,7 +10,7 @@
  * script only wraps electron-builder with the repository's conventions.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -39,4 +39,17 @@ execFileSync(
   ["--config", "electron-builder.yml", platform, ...archFlag, ...(dirOnly ? ["--dir"] : []), ...passthrough],
   { cwd: desktopDir, stdio: "inherit" },
 );
-console.log(`✓ artefacts in ${join(desktopDir, "release")}`);
+const outputArg = args.find((arg) => arg.startsWith("--config.directories.output="));
+const outputDir = outputArg ? outputArg.slice("--config.directories.output=".length) : join(desktopDir, "release");
+const metadataPath = join(outputDir, "latest-mac.yml");
+if (process.platform === "darwin" && existsSync(metadataPath)) {
+  // A stale metadata file would advertise an old version and hash at the feed,
+  // so refusing to finish is safer than uploading a mismatched pair.
+  const metadataVersion = readFileSync(metadataPath, "utf8").match(/^version:\s*(.+)$/m)?.[1]?.trim();
+  const packageVersion = JSON.parse(readFileSync(join(desktopDir, "package.json"), "utf8")).version;
+  if (metadataVersion !== packageVersion) {
+    console.error(`\n✗ latest-mac.yml 版本 ${metadataVersion} 与 package.json ${packageVersion} 不一致\n`);
+    process.exit(1);
+  }
+}
+console.log(`✓ artefacts in ${outputDir}`);

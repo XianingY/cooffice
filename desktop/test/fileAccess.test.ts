@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -68,6 +68,21 @@ describe("file access", () => {
     const target = join(dir, "out.bin");
     writeFileBytes(target, new Uint8Array([1, 2, 3]));
     expect(readFileSync(target)).toEqual(Buffer.from([1, 2, 3]));
+  });
+
+  it("replaces an existing file atomically and leaves no temp files", () => {
+    const target = join(dir, "out.bin");
+    writeFileSync(target, "old");
+    writeFileBytes(target, new Uint8Array([9, 9]));
+
+    expect(readFileSync(target)).toEqual(Buffer.from([9, 9]));
+    expect(readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  });
+
+  it("cleans up the temp file when the target cannot be written", () => {
+    const target = join(dir, "missing", "out.bin");
+    expect(() => writeFileBytes(target, new Uint8Array([1]))).toThrow();
+    expect(readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual([]);
   });
 
   it("reports a missing file instead of crashing", () => {

@@ -38,6 +38,8 @@ export interface IpcDeps {
   setTheme(setting: ThemeSetting): ThemeState;
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): void;
+  /** Mirrors the renderer's dirty flag so the window can guard closing. */
+  setDocumentEdited(dirty: boolean): void;
 }
 
 /** Only http(s) and mailto links may leave the app. */
@@ -239,7 +241,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   });
 
   ipcMain.on(IPC.setDirty, (_event, dirty: unknown) => {
-    deps.getWindow()?.setDocumentEdited(dirty === true);
+    deps.setDocumentEdited(dirty === true);
   });
 
   ipcMain.handle(IPC.setCurrentFile, (_event, filePath: unknown) => {

@@ -17,6 +17,16 @@ export function resolveUpdateFeed(source: NodeJS.ProcessEnv = process.env): stri
 }
 
 /**
+ * Page a user can open when an update exists. Kept separate from the feed: the
+ * feed is machine metadata, this is the human download page.
+ */
+export function resolveReleaseUrl(source: NodeJS.ProcessEnv = process.env): string | null {
+  const value = source.WHATIF_RELEASE_URL?.trim();
+  if (!value || !/^https:\/\//.test(value)) return null;
+  return value;
+}
+
+/**
  * Ask the updater for a release and translate the outcome into a status the
  * UI can show verbatim. Without a feed the app reports `unconfigured` rather
  * than pretending an update check happened.
