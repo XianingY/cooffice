@@ -34,6 +34,30 @@ describe("ProjectRepository", () => {
     } finally { db.close(); }
   });
 
+  it("refuses to write when the stored version moved after the read", () => {
+    const { db, repo, ownerId } = setup();
+    try {
+      const project = repo.create({ ownerId, name: "Q1", baseline: salesData, draft: salesData, config });
+
+      // Simulate another process bumping the row between our read and write.
+      db.prepare("UPDATE projects SET version = 2, name = 'other' WHERE id = ?").run(project.id);
+      const realFind = repo.findById.bind(repo);
+      let firstRead = true;
+      repo.findById = ((id: string) => {
+        const row = realFind(id);
+        // Only the initial read is stale; the post-update read must be real.
+        if (firstRead && row) {
+          firstRead = false;
+          return { ...row, version: 1 };
+        }
+        return row;
+      }) as typeof repo.findById;
+
+      expect(repo.update(project.id, { name: "late" })).toBeNull();
+      expect(realFind(project.id)!.name).toBe("other");
+    } finally { db.close(); }
+  });
+
   it("lists with pagination and sorting, scoped to owner", () => {
     const { db, repo, ownerId } = setup();
     try {

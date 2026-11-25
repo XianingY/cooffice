@@ -59,7 +59,21 @@ export class AuthService {
 
   async refresh(rawToken: string, requestId: string): Promise<TokenPair> {
     const record = this.deps.refreshTokens.findByHash(hashToken(rawToken));
-    if (!record || record.revokedAt !== null || record.expiresAt <= Date.now()) {
+    if (!record || record.expiresAt <= Date.now()) {
+      throw AppError.unauthorized("Refresh token is invalid or expired");
+    }
+    if (record.revokedAt !== null) {
+      // A rotated token cannot come back legitimately. Assume theft and drop
+      // every active session for the account, not just this family: the
+      // attacker may already hold a newer family from an earlier replay.
+      this.deps.refreshTokens.revokeAllForUser(record.userId);
+      this.deps.audit.append({
+        requestId,
+        actorId: record.userId,
+        action: "token_reuse_detected",
+        entity: "auth",
+        entityId: record.userId,
+      });
       throw AppError.unauthorized("Refresh token is invalid or expired");
     }
     const user = this.deps.users.findById(record.userId);

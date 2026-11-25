@@ -123,7 +123,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   if (env.API_DOCS) await app.register(registerApiDocs);
   await app.register(registerHealthRoutes, { db });
   await app.register(registerAuthRoutes, { service: authService, users, tokens, env });
-  await app.register(registerProfileRoutes, { service: new ProfileService(users), tokens });
+  await app.register(registerProfileRoutes, {
+    service: new ProfileService(users, refreshTokens, audit),
+    tokens,
+  });
   await app.register(registerProjectRoutes, { service: projectService, tokens, events: eventBus });
   await app.register(registerProjectFileRoutes, { service: projectService, tokens });
   await app.register(registerReportRoutes, { service: reportService, tokens });

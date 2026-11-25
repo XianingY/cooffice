@@ -100,9 +100,11 @@ export class ProjectRepository {
       version: current.version + 1,
       updatedAt: new Date().toISOString(),
     };
-    this.db.prepare(
+    // Conditional on the version we read: two concurrent writers both reading
+    // v1 cannot both produce v2, because the second WHERE no longer matches.
+    const changes = this.db.prepare(
       `UPDATE projects SET name = ?, baseline_json = ?, draft_json = ?, config_json = ?, version = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND version = ?`,
     ).run(
       next.name,
       JSON.stringify(next.baseline),
@@ -111,7 +113,9 @@ export class ProjectRepository {
       next.version,
       next.updatedAt,
       id,
-    );
+      current.version,
+    ).changes;
+    if (changes === 0) return null;
     return this.findById(id)!;
   }
 

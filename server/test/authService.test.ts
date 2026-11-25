@@ -52,17 +52,23 @@ describe("AuthService", () => {
     } finally { db.close(); }
   });
 
-  it("rotates refresh tokens and invalidates the old family on reuse", async () => {
+  it("revokes every session when a rotated token is replayed", async () => {
     const { db, service } = setup();
     try {
       const first = await service.register({ email: "r@b.test", password: "password123", displayName: "R" }, "r1");
       const second = await service.refresh(first.refreshToken, "r2");
       expect(second.refreshToken).not.toBe(first.refreshToken);
-      // Reusing the old token is rejected and its whole family stays revoked.
+
+      // Replaying the rotated token is treated as theft: the presented family
+      // and any newer family for the account are both revoked.
       await expect(service.refresh(first.refreshToken, "r3")).rejects.toThrow("invalid or expired");
-      // The rotated token lives in a fresh family and remains usable.
-      const third = await service.refresh(second.refreshToken, "r4");
-      expect(third.refreshToken).not.toBe(second.refreshToken);
+      await expect(service.refresh(second.refreshToken, "r4")).rejects.toThrow("invalid or expired");
+
+      // A fresh login starts a clean session, so the user is not locked out.
+      const relogin = await service.login({ email: "r@b.test", password: "password123" }, "r5");
+      await expect(service.refresh(relogin.refreshToken, "r6")).resolves.toMatchObject({
+        user: { email: "r@b.test" },
+      });
     } finally { db.close(); }
   });
 

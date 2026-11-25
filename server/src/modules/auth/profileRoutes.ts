@@ -25,7 +25,7 @@ export async function registerProfileRoutes(
 
   app.post("/api/me/password", { preHandler: guard }, async (request) => {
     const body = parseBody(passwordSchema, request.body);
-    await options.service.changePassword(currentUserId(request), body.currentPassword, body.newPassword);
+    await options.service.changePassword(currentUserId(request), body.currentPassword, body.newPassword, request.id);
     return { ok: true };
   });
 }

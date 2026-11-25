@@ -65,6 +65,17 @@ export class RefreshTokenRepository {
     this.db.prepare("UPDATE refresh_tokens SET revoked_at = ? WHERE family_id = ? AND revoked_at IS NULL").run(at, familyId);
   }
 
+  /**
+   * Revoke every active token for a user. Used when a reused token signals
+   * theft and when the password changes: in both cases the attacker may hold a
+   * different family, so revoking only the presented one is not enough.
+   */
+  revokeAllForUser(userId: string, at = Date.now()): number {
+    return this.db
+      .prepare("UPDATE refresh_tokens SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL")
+      .run(at, userId).changes;
+  }
+
   deleteExpired(now = Date.now()): number {
     return this.db.prepare("DELETE FROM refresh_tokens WHERE expires_at < ?").run(now).changes;
   }
