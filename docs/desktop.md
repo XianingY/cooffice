@@ -87,7 +87,7 @@ npm run desktop:start            # 启动桌面应用
 
 > 为什么不让 Electron 直接复用 `server/node_modules`：better-sqlite3 是原生模块，按 Electron ABI 编译后系统 Node 就加载不了，`npm --prefix server test` 会直接失败。隔离一份依赖是唯一干净的解法。
 
-调试：`WHATIF_DEVTOOLS=1 npm run desktop:start` 打开开发者工具；`WHATIF_USER_DATA_DIR=/tmp/wifr` 可换一个临时 profile（自动化测试即用此方式）。
+调试：`WHATIF_DEVTOOLS=1 npm run desktop:start` 打开开发者工具（仅开发态有效；打包版本禁用 DevTools，避免控制台读取会话令牌）；`WHATIF_USER_DATA_DIR=/tmp/wifr` 可换一个临时 profile（自动化测试即用此方式）。
 
 ## 打包与分发
 

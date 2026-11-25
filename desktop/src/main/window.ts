@@ -51,7 +51,10 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
       sandbox: true,
       webSecurity: true,
       spellcheck: false,
-      devTools: true,
+      // The preload exposes getSessionToken(); leaving DevTools available in a
+      // shipped app would let any local user reach that token from the console
+      // and defeat the per-launch API guard.
+      devTools: options.isDev,
     },
   });
 
