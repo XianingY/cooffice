@@ -1,0 +1,13 @@
+# Keeps the secret scan actionable without fingerprinting every new test file.
+# Only synthetic JWT fixtures under server/test are exempt; anything outside
+# that path (or any other rule) still fails the build.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic JWT signing strings used by server unit tests"
+paths = ['''server/test/.*\.test\.ts$''']
+regexes = [
+  '''integration-secret-long-enough-for-hs256''',
+  '''test-secret-that-is-long-enough-for-hs256-signing''',
+]

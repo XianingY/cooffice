@@ -1,6 +1,6 @@
 # 验证记录
 
-本文档记录 v1.5.0 的本地验收基线与执行方式,便于维护者复现。
+本文档记录 v1.6.0 的本地验收基线与执行方式,便于维护者复现。
 
 ## 门禁命令
 
@@ -19,13 +19,13 @@ CI 的 `fullstack` job 在每次 push/PR 运行 `test:e2e:full`（真实 Fastify
 
 | 检查 | 结果 |
 |---|---|
-| `gitleaks detect --log-opts=--all`(全历史) | 0 项；14 条合成测试值按指纹列入 `.gitleaksignore` |
+| `gitleaks detect --log-opts=--all`(全历史) | 0 项；`server/test` 的合成 JWT 字符串由 `.gitleaks.toml` 白名单豁免 |
 | `npm run typecheck` | 通过 |
-| `npm test`(根 Vitest,含前端/后端/桌面) | 77 文件 / 332 项通过 |
-| `npm run server:test`(后端 Vitest) | 35 文件 / 120 项通过 |
+| `npm test`(根 Vitest,含前端/后端/桌面) | 85 文件 / 364 项通过 |
+| `npm run server:test`(后端 Vitest) | 38 文件 / 132 项通过 |
 | `npm run test:e2e`(浏览器) | 13 项通过 |
 | `npm run test:e2e:full`(真实前后端) | 2 项通过 |
-| `npm run desktop:test`(桌面主进程) | 11 文件 / 55 项通过 |
+| `npm run desktop:test`(桌面主进程) | 12 文件 / 61 项通过 |
 | `npm run test:e2e:desktop`(真实 Electron) | 14 项通过 |
 | `npm run build`(前端生产构建) | 通过,首屏 273 kB(gzip 86 kB)+ 表格 427 kB / Word 171 kB 懒加载块 |
 | `npm run server:build` | 通过 |
