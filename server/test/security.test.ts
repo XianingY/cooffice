@@ -46,4 +46,18 @@ describe("security headers", () => {
     const denied = await server.inject({ method: "GET", url: "/health", headers: { origin: "http://evil.test" } });
     expect(denied.headers["access-control-allow-origin"]).toBeUndefined();
   });
+
+  it("allows PUT preflight requests for cross-origin draft saves", async () => {
+    const server = await boot(baseEnv);
+    const preflight = await server.inject({
+      method: "OPTIONS",
+      url: "/api/projects/p1/draft",
+      headers: {
+        origin: "http://localhost:5173",
+        "access-control-request-method": "PUT",
+      },
+    });
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers["access-control-allow-methods"]).toContain("PUT");
+  });
 });

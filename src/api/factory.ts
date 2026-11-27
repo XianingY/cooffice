@@ -13,7 +13,30 @@ export function setRefreshHandler(handler: () => Promise<boolean>): void {
   refreshHandler = handler;
 }
 
-const configuredBase = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+/**
+ * Normalise VITE_API_BASE_URL so same-origin proxy deployments (`/` or `/api`)
+ * never produce double `/api/api/...` URLs when combined with endpoint paths
+ * that already start with `/api/`.
+ */
+export function resolveApiConfig(
+  configured: string | undefined,
+  runtimeBase = "",
+): { cloudEnabled: boolean; baseUrl: string } {
+  const runtime = runtimeBase.trim().replace(/\/+$/, "");
+  if (runtime.length > 0) return { cloudEnabled: true, baseUrl: runtime };
+
+  const raw = (configured ?? "").trim();
+  if (raw.length === 0) return { cloudEnabled: false, baseUrl: "" };
+
+  const stripped = raw.replace(/\/+$/, "");
+  if (stripped === "" || stripped === "/api") {
+    return { cloudEnabled: true, baseUrl: "" };
+  }
+  const baseUrl = stripped.endsWith("/api") ? stripped.slice(0, -4) : stripped;
+  return { cloudEnabled: true, baseUrl };
+}
+
+const configuredBase = import.meta.env.VITE_API_BASE_URL as string | undefined;
 
 /**
  * In the desktop shell the renderer is served by the embedded API, so the
@@ -25,9 +48,11 @@ const runtimeBase =
     ? window.location.origin
     : "";
 
+const resolved = resolveApiConfig(configuredBase, runtimeBase);
+
 /** Cloud features are disabled unless a backend URL is explicitly configured. */
-export const cloudEnabled = runtimeBase.length > 0 || configuredBase.length > 0;
-const baseUrl = runtimeBase || configuredBase;
+export const cloudEnabled = resolved.cloudEnabled;
+const baseUrl = resolved.baseUrl;
 
 /** Absolute URL for a path on the configured API, used by fetch-based SSE. */
 export function apiUrl(path: string): string {

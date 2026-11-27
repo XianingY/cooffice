@@ -35,7 +35,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: /api
+        # Endpoints already start with /api/, proxied to the api service by nginx.
+        VITE_API_BASE_URL: /
     ports:
       - "8080:80"
     depends_on:

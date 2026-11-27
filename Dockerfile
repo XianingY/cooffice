@@ -6,7 +6,9 @@ RUN npm ci
 COPY index.html tsconfig.json vite.config.ts ./
 COPY src ./src
 COPY public ./public
-ARG VITE_API_BASE_URL=/api
+# Same-origin proxy: API routes already carry the /api prefix, so `/` opts into
+# cloud mode without duplicating `/api/api/...`.
+ARG VITE_API_BASE_URL=/
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 

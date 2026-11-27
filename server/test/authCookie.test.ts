@@ -38,4 +38,20 @@ describe("refresh cookie lifetime", () => {
     expect(value).toContain("HttpOnly");
     expect(value).toContain("Secure");
   });
+
+  it("clears the refresh cookie with matching domain and security attributes on logout", async () => {
+    db = openDatabase(":memory:");
+    app = await buildApp({ env: { ...env, COOKIE_DOMAIN: ".whatif.test" }, db });
+    await app.ready();
+
+    const response = await app.inject({ method: "POST", url: "/api/auth/logout" });
+    expect(response.statusCode).toBe(200);
+    const cookie = response.headers["set-cookie"];
+    const value = Array.isArray(cookie) ? cookie.join(";") : String(cookie);
+    expect(value).toContain("Domain=.whatif.test");
+    expect(value).toContain("Path=/api/auth");
+    expect(value).toContain("HttpOnly");
+    expect(value).toContain("Secure");
+    expect(value).toContain("SameSite=Strict");
+  });
 });

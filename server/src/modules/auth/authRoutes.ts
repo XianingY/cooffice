@@ -22,16 +22,22 @@ const loginSchema = z.object({
 
 const REFRESH_COOKIE = "refresh_token";
 
-function refreshCookieOptions(env: Env) {
+function baseCookieOptions(env: Env) {
   return {
     httpOnly: true,
     secure: env.COOKIE_SECURE,
     sameSite: "strict" as const,
     path: "/api/auth",
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
+  };
+}
+
+function refreshCookieOptions(env: Env) {
+  return {
+    ...baseCookieOptions(env),
     // Follow the configured token lifetime: a fixed 7 days would silently log
     // users out early when JWT_REFRESH_TTL is longer.
     maxAge: Math.floor(ttlToMs(env.JWT_REFRESH_TTL) / 1000),
-    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
   };
 }
 
@@ -82,7 +88,7 @@ export async function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDe
   app.post("/api/auth/logout", async (request, reply) => {
     const token = request.cookies?.[REFRESH_COOKIE];
     if (token) deps.service.logout(token, request.requestId);
-    void reply.clearCookie(REFRESH_COOKIE, { path: "/api/auth" });
+    void reply.clearCookie(REFRESH_COOKIE, baseCookieOptions(deps.env));
     return { ok: true };
   });
 
