@@ -14,7 +14,12 @@ interface CloudPanelProps {
   baseline: SalesData;
   draft: SalesData;
   config: ReportConfig;
-  onOpenProject(baseline: SalesData, draft: SalesData, config: ReportConfig): void;
+  onOpenProject(
+    baseline: SalesData,
+    draft: SalesData,
+    config: ReportConfig,
+    onApplied?: () => void,
+  ): void;
 }
 
 /** Optional cloud features: local-first editing never depends on this panel. */
@@ -29,9 +34,9 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
   // session (or another device) refreshes the list without a manual reload.
   const liveConnected = useProjectEvents(cloud.projectId, () => setRefreshKey((key) => key + 1));
 
-  const handleSave = async () => {
-    await cloud.save(name, baseline, draft, config);
-    setRefreshKey((key) => key + 1);
+  const handleSave = async (saveAsNew = false) => {
+    const savedId = await cloud.save(name, baseline, draft, config, { saveAsNew });
+    if (savedId) setRefreshKey((key) => key + 1);
   };
 
   const handleExportFile = async () => {
@@ -47,17 +52,28 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
         extensions: ["json"],
       });
       if (!outcome.saved) setExportError(outcome.error ?? "");
+      else setExportError("");
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "导出项目文件失败");
     }
   };
 
   const handleOpen = async (id: string) => {
-    const project = await cloud.open(id);
+    const project = await cloud.fetchProject(id);
     if (project) {
-      onOpenProject(project.baseline, project.draft, project.config);
-      setName(project.name);
+      onOpenProject(project.baseline, project.draft, project.config, () => {
+        cloud.bindProject(project);
+        setName(project.name);
+      });
     }
+  };
+
+  const handleDeleted = (deletedId: string) => {
+    if (deletedId === cloud.projectId) {
+      cloud.detach();
+      setName("未命名项目");
+    }
+    setRefreshKey((key) => key + 1);
   };
 
   return (
@@ -75,9 +91,14 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
               项目名称
               <input aria-label="项目名称" value={name} onChange={(event) => setName(event.target.value)} />
             </label>
-            <button type="button" onClick={() => void handleSave()} disabled={cloud.saving || !online}>
+            <button type="button" onClick={() => void handleSave(false)} disabled={cloud.saving || !online}>
               {cloud.saving ? "保存中…" : cloud.projectId ? "更新云端项目" : "保存到云端"}
             </button>
+            {cloud.projectId ? (
+              <button type="button" onClick={() => void handleSave(true)} disabled={cloud.saving || !online}>
+                另存为新项目
+              </button>
+            ) : null}
           </div>
           {cloud.projectId ? (
             <>
@@ -91,7 +112,13 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
             <p role="alert" className="status-error">{cloud.error || error || exportError}</p>
           ) : null}
           <ProfilePanel api={api} />
-          <ProjectList api={api} onOpen={(id) => void handleOpen(id)} refreshKey={refreshKey} />
+          <ProjectList
+            api={api}
+            activeProjectId={cloud.projectId}
+            onOpen={(id) => void handleOpen(id)}
+            onDeleted={handleDeleted}
+            refreshKey={refreshKey}
+          />
           <button type="button" onClick={() => void signOut()}>退出登录</button>
         </>
       )}

@@ -564,11 +564,12 @@ export default function App() {
         baseline={state.baseline}
         draft={state.draft}
         config={reportConfig}
-        onOpenProject={(baseline, draft, config) => {
+        onOpenProject={(baseline, draft, config, onApplied) => {
           runImport("云端项目", () => {
             dispatch({ type: "importDocument", baseline, draft });
             setReportConfig(normaliseReportConfig(config));
             setImportError("");
+            onApplied?.();
           });
         }}
       />

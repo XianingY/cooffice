@@ -80,7 +80,16 @@ export function createApi(client: ApiClient) {
       create: (body: { name: string; baseline: SalesData; draft?: SalesData; config?: ReportConfig }) =>
         client.request<Project>("/api/projects", { method: "POST", body: JSON.stringify(body) }),
       get: (id: string) => client.request<Project>(`/api/projects/${encodeURIComponent(id)}`),
-      update: (id: string, body: Partial<{ name: string; config: ReportConfig; expectedVersion: number }>) =>
+      update: (
+        id: string,
+        body: Partial<{
+          name: string;
+          baseline: SalesData;
+          draft: SalesData;
+          config: ReportConfig;
+          expectedVersion: number;
+        }>,
+      ) =>
         client.request<Project>(`/api/projects/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
       remove: (id: string) => client.request<void>(`/api/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
       saveDraft: (id: string, draft: SalesData) =>

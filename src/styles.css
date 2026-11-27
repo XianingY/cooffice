@@ -698,6 +698,53 @@ body {
   letter-spacing: 0.02em;
 }
 
+.project-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-item .project-open {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.project-item.active .project-open {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.project-delete,
+.project-delete-confirm button,
+.project-pagination button {
+  padding: 6px 10px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.project-delete-confirm {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.project-delete-confirm button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-danger);
+}
+
+.project-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
 /* Shown while files hover the window; never intercepts the drop itself. */
 .drop-overlay {
   position: fixed;
