@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { filePathOf, getDesktop, toFile } from "../desktop/bridge";
 
 export interface FileDropHandlers {
-  /** A browser File or a desktop payload rebuilt as a File. */
-  onFile(file: File): void;
+  /** A browser File or a desktop payload rebuilt as a File (plus its native path when available). */
+  onFile(file: File, filePath?: string | null): void;
   onError(message: string): void;
 }
 
@@ -38,13 +38,13 @@ export function useFileDrop(handlers: FileDropHandlers): boolean {
             handlersRef.current.onError(result.error ?? "无法读取拖入的文件");
             return;
           }
-          handlersRef.current.onFile(toFile(result.name, result.bytes));
+          handlersRef.current.onFile(toFile(result.name, result.bytes), result.filePath ?? path);
         } catch (error) {
           handlersRef.current.onError(error instanceof Error ? error.message : "文件读取失败");
         }
         return;
       }
-      handlersRef.current.onFile(file);
+      handlersRef.current.onFile(file, null);
     };
 
     const onDragEnter = (event: DragEvent) => {

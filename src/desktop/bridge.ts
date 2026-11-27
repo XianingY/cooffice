@@ -221,8 +221,14 @@ export function toFile(name: string, bytes: Uint8Array): File {
   return new File([new Uint8Array(bytes)], name);
 }
 
-/** Electron adds an absolute path to files that came from a native drag. */
+/**
+ * Resolve the native path of a dropped file. Electron 32+ removed File.path in
+ * favour of webUtils.getPathForFile (exposed through preload); keep the legacy
+ * property fallback for browser/jsdom tests.
+ */
 export function filePathOf(file: File): string | null {
+  const fromBridge = getDesktop()?.getPathForFile?.(file);
+  if (typeof fromBridge === "string" && fromBridge.length > 0) return fromBridge;
   const path = (file as File & { path?: unknown }).path;
   return typeof path === "string" && path.length > 0 ? path : null;
 }

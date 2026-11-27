@@ -89,4 +89,30 @@ describe("file drop", () => {
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith("只支持表格和项目文件"));
     expect(onFile).not.toHaveBeenCalled();
   });
+
+  it("prefers webUtils.getPathForFile over removed File.path on Electron 32+", async () => {
+    const bytes = new Uint8Array([4, 5, 6]);
+    const openDroppedFile = vi.fn().mockResolvedValue({
+      kind: "project",
+      canceled: false,
+      filePath: "/Users/test/demo.whatif",
+      name: "demo.whatif",
+      bytes,
+    });
+    const getPathForFile = vi.fn().mockReturnValue("/Users/test/demo.whatif");
+    (window as { desktop?: DesktopBridge }).desktop = {
+      isDesktop: true,
+      getPathForFile,
+      openDroppedFile,
+    } as unknown as DesktopBridge;
+
+    const onFile = vi.fn();
+    render(<Probe onFile={onFile} onError={vi.fn()} />);
+    const file = new File(["{}"], "demo.whatif");
+    fireEvent.drop(window, { dataTransfer: fileTransfer(file) });
+
+    await vi.waitFor(() => expect(openDroppedFile).toHaveBeenCalledWith("/Users/test/demo.whatif"));
+    expect(getPathForFile).toHaveBeenCalledWith(file);
+    expect(onFile).toHaveBeenCalledWith(expect.any(File), "/Users/test/demo.whatif");
+  });
 });

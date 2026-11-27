@@ -104,7 +104,7 @@ export function Toolbar({
             id="project-file"
             className="visually-hidden-input"
             type="file"
-            accept=".json"
+            accept=".whatif,.json"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0];
               if (file) onImportProject(file);

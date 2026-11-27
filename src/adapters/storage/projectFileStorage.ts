@@ -2,7 +2,13 @@ import { parseProjectFile } from "../../core/projectFile";
 import type { ProjectFileSnapshot } from "../../core/types";
 
 export const PROJECT_FILE_EXTENSION = ".json";
+export const PROJECT_FILE_EXTENSIONS = [".whatif", ".json"] as const;
 export const PROJECT_FILE_FILENAME = "what-if-report-project.json";
+
+export function isProjectFileName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return PROJECT_FILE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 /**
  * Parse a project document from already-read text.
@@ -22,8 +28,8 @@ export function parseProjectFileText(text: string): ProjectFileSnapshot {
 
 /** Read a versioned project document from disk; never trusts file contents. */
 export async function readProjectFile(file: File): Promise<ProjectFileSnapshot> {
-  if (!file.name.toLowerCase().endsWith(PROJECT_FILE_EXTENSION)) {
-    throw new Error("只支持 .json 文件");
+  if (!isProjectFileName(file.name)) {
+    throw new Error("只支持 .whatif 或 .json 文件");
   }
   return parseProjectFileText(await file.text());
 }

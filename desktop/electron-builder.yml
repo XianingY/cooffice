@@ -34,16 +34,20 @@ extraResources:
       - "!**/examples/**"
       - "!**/coverage/**"
 
-# Double-clicking a .json project launches the app with that document already
-# loaded. The main process already handles both argv (Windows/Linux) and the
-# macOS `open-file` event. Linux AppImage cannot register associations; users
-# there can still set a default application for the MIME type themselves.
+# Dedicated `.whatif` extension owns the default file association so installing
+# the app never hijacks generic `.json` files; legacy `.json` project files
+# remain registered as Alternate ("Open With") and open normally.
 fileAssociations:
-  - ext: json
+  - ext: whatif
     name: What-if Report 项目
     description: What-if Report 项目文件（基线数据与草稿）
     role: Editor
     rank: Default
+  - ext: json
+    name: What-if Report 项目 (JSON)
+    description: What-if Report 兼容项目文件（基线数据与草稿）
+    role: Editor
+    rank: Alternate
 
 asar: true
 asarUnpack:

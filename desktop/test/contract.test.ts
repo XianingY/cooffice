@@ -28,6 +28,8 @@ describe("preload/main contract", () => {
       "openProject",
       "openSpreadsheet",
       "openDroppedFile",
+      "getPathForFile",
+      "polishText",
       "revealPath",
       "getSessionToken",
       "getTheme",

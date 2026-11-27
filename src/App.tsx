@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
+  isProjectFileName,
   parseProjectFileText,
   PROJECT_FILE_FILENAME,
   readProjectFile,
@@ -268,7 +269,7 @@ export default function App() {
       const outcome = await saveBlob(blob, {
         suggestedName: PROJECT_FILE_FILENAME,
         filterName: "What-if 项目",
-        extensions: ["json"],
+        extensions: ["whatif", "json"],
         inPlace,
       });
       reportSave("项目文件", outcome);
@@ -282,14 +283,15 @@ export default function App() {
    * One importer for the file input and for drops. Desktop drops arrive as
    * bytes read by the main process, so both routes reduce to a File here.
    */
-  const importDroppedFile = async (file: File) => {
+  const importDroppedFile = async (file: File, filePath?: string | null) => {
     try {
-      if (file.name.toLowerCase().endsWith(".json")) {
+      if (isProjectFileName(file.name)) {
         const document = await readProjectFile(file);
         runImport(file.name, () => {
           dispatch({ type: "importDocument", baseline: document.baseline, draft: document.draft });
           setReportConfig(normaliseReportConfig(document.config));
           setImportError("");
+          if (filePath) trackDocument(filePath);
         });
         return;
       }
@@ -455,7 +457,7 @@ export default function App() {
   }, [desktop]);
 
   const draggingFile = useFileDrop({
-    onFile: (file) => void importDroppedFile(file),
+    onFile: (file, filePath) => void importDroppedFile(file, filePath),
     onError: setImportError,
   });
 

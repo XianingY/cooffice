@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 /**
  * Sandboxed preload: no Node built-ins and no relative requires are available
@@ -18,6 +18,7 @@ const CHANNELS = {
   openRecent: "desktop:open-recent",
   checkForUpdates: "desktop:check-for-updates",
   openExternal: "desktop:open-external",
+  polishText: "desktop:polish-text",
   openDataDir: "desktop:open-data-dir",
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
@@ -44,6 +45,15 @@ export const desktopApi = {
   openProject: () => ipcRenderer.invoke(CHANNELS.openProject),
   openSpreadsheet: () => ipcRenderer.invoke(CHANNELS.openSpreadsheet),
   openDroppedFile: (filePath: string) => ipcRenderer.invoke(CHANNELS.openDroppedFile, filePath),
+  /** Electron 32+ removed File.path; webUtils.getPathForFile is the supported API. */
+  getPathForFile: (file: File): string | null => {
+    try {
+      const resolved = webUtils.getPathForFile(file);
+      return resolved.length > 0 ? resolved : null;
+    } catch {
+      return null;
+    }
+  },
   openRecent: (filePath: string) => ipcRenderer.invoke(CHANNELS.openRecent, filePath),
   recentFiles: () => ipcRenderer.invoke(CHANNELS.recentFiles),
   revealPath: (filePath: string) => ipcRenderer.invoke(CHANNELS.revealPath, filePath),
@@ -55,6 +65,8 @@ export const desktopApi = {
   appInfo: () => ipcRenderer.invoke(CHANNELS.appInfo),
   checkForUpdates: () => ipcRenderer.invoke(CHANNELS.checkForUpdates),
   openExternal: (url: string) => ipcRenderer.invoke(CHANNELS.openExternal, url),
+  polishText: (request: { endpoint: string; model: string; key: string; text: string }) =>
+    ipcRenderer.invoke(CHANNELS.polishText, request),
   /**
    * Per-launch token the API requires on every request. Fetched synchronously
    * once so the first API call already carries it.

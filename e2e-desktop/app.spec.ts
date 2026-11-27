@@ -121,32 +121,53 @@ test("marks the window as edited while a draft is pending", async () => {
   expect(cleared).toBe(false);
 });
 
-test("forwards native menu commands to the renderer", async () => {
-  // Same channel the File ▸ 清除本地项目 item uses.
-  await app.evaluate(({ BrowserWindow }) => {
-    BrowserWindow.getAllWindows()[0].webContents.send("desktop:menu-action", { action: "clear-project" });
+test("forwards native menu commands to the renderer through the real menu", async () => {
+  // Click the real native File ▸ 清除本地项目 menu item so sendMenuAction is exercised end-to-end.
+  await app.evaluate(({ Menu }) => {
+    const fileMenu = Menu.getApplicationMenu()?.items.find((item: { label?: string }) => item.label === "文件");
+    const clearItem = fileMenu?.submenu?.items.find((item: { label?: string }) => item.label === "清除本地项目");
+    if (!clearItem) throw new Error("missing File > 清除本地项目 menu item");
+    clearItem.click(undefined as never, undefined as never, undefined as never);
   });
   await expect(page.getByRole("button", { name: "确认清除" })).toBeVisible();
   await page.getByRole("button", { name: "取消" }).click();
   await expect(page.getByRole("button", { name: "确认清除" })).toHaveCount(0);
 });
 
-test("writes exports through the IPC filesystem path", async () => {
-  const target = join(userDataDir, "export-check.json");
-  const saved = await page.evaluate(async (filePath) => {
-    const bridge = window.desktop!;
-    const result = await bridge.saveFile({
-      suggestedName: "export-check.json",
-      data: new TextEncoder().encode('{"ok":true}'),
+test("rejects unauthorized saveFile targetPath and allows in-place save after project open", async () => {
+  const unauthorizedTarget = join(userDataDir, "unauthorized.json");
+  const rejected = await page.evaluate(async (filePath) => {
+    return window.desktop!.saveFile({
+      suggestedName: "unauthorized.json",
+      data: new TextEncoder().encode('{"blocked":true}'),
       filterName: "What-if 项目",
       extensions: ["json"],
       targetPath: filePath,
     });
-    return result;
-  }, target);
+  }, unauthorizedTarget);
+  expect(rejected.canceled).toBe(true);
+  expect(rejected.error).toMatch(/未获得写入授权/);
+  expect(existsSync(unauthorizedTarget)).toBe(false);
+
+  // Authorizing a project file via drop allows subsequent ⌘S in-place writes to that exact path.
+  const stored = await page.evaluate(() => localStorage.getItem("what-if-report:project:v1"));
+  const authorizedTarget = join(userDataDir, "authorized-save.whatif");
+  writeFileSync(authorizedTarget, stored!);
+  const opened = await page.evaluate((filePath) => window.desktop!.openDroppedFile(filePath), authorizedTarget);
+  expect(opened.canceled).toBe(false);
+
+  const saved = await page.evaluate(async (filePath) => {
+    return window.desktop!.saveFile({
+      suggestedName: "authorized-save.whatif",
+      data: new TextEncoder().encode('{"ok":true}'),
+      filterName: "What-if 项目",
+      extensions: ["whatif", "json"],
+      targetPath: filePath,
+    });
+  }, authorizedTarget);
   expect(saved.canceled).toBe(false);
-  expect(saved.filePath).toBe(target);
-  expect(readFileSync(target, "utf8")).toBe('{"ok":true}');
+  expect(saved.filePath).toBe(authorizedTarget);
+  expect(readFileSync(authorizedTarget, "utf8")).toBe('{"ok":true}');
 });
 
 test("keeps data across a window reload", async () => {
@@ -193,7 +214,7 @@ test("rejects an unsupported dropped file without changing the document", async 
     window.dispatchEvent(new DragEvent("drop", { dataTransfer: transfer, bubbles: true, cancelable: true }));
   }, target);
 
-  await expect(page.getByText("只支持 .json 项目文件或 .xlsx/.xls/.csv 表格")).toBeVisible();
+  await expect(page.getByText("只支持 .whatif/.json 项目文件或 .xlsx/.xls/.csv 表格")).toBeVisible();
   await expect(page.getByLabel("华东当前销售额")).toHaveValue("77");
 });
 

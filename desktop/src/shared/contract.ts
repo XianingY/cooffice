@@ -16,6 +16,7 @@ export const IPC = {
   openRecent: "desktop:open-recent",
   checkForUpdates: "desktop:check-for-updates",
   openExternal: "desktop:open-external",
+  polishText: "desktop:polish-text",
   openDataDir: "desktop:open-data-dir",
   openLogsDir: "desktop:open-logs-dir",
   menuAction: "desktop:menu-action",
@@ -113,4 +114,16 @@ export interface UpdateCheckResult {
   status: "unconfigured" | "checking" | "up-to-date" | "available" | "error";
   version?: string;
   message?: string;
+}
+
+export interface PolishTextRequest {
+  endpoint: string;
+  model: string;
+  key: string;
+  text: string;
+}
+
+export interface PolishTextResult {
+  text?: string;
+  error?: string;
 }

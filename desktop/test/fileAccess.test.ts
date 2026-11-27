@@ -56,6 +56,7 @@ describe("file access", () => {
   });
 
   it("classifies dropped files case-insensitively and rejects the rest", () => {
+    expect(classifyFile("/tmp/project.whatif")).toBe("project");
     expect(classifyFile("/tmp/project.JSON")).toBe("project");
     expect(classifyFile("/tmp/book.XLSX")).toBe("spreadsheet");
     expect(classifyFile("/tmp/old.xls")).toBe("spreadsheet");

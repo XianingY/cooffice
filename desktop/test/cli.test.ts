@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { isReadableProjectPath, takeProjectArgument } from "../src/main/cli.js";
 
-const exists = (path: string) => path.endsWith(".json");
+const exists = (path: string) => path.endsWith(".json") || path.endsWith(".whatif");
 
 describe("launch arguments", () => {
-  it("finds a project file passed on the command line", () => {
+  it("finds a .whatif or .json project file passed on the command line", () => {
+    expect(takeProjectArgument(["/app/electron", "/tmp/report.whatif"], exists)).toBe("/tmp/report.whatif");
     expect(takeProjectArgument(["/app/electron", "/tmp/report.json"], exists)).toBe("/tmp/report.json");
   });
 

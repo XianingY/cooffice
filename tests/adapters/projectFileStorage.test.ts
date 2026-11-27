@@ -18,8 +18,9 @@ describe("projectFileStorage", () => {
   it("reads a valid project file and rejects wrong extensions", async () => {
     const fake = (name: string, content: string) =>
       ({ name, size: content.length, text: async () => content }) as unknown as File;
+    await expect(readProjectFile(fake("project.whatif", text))).resolves.toEqual(file);
     await expect(readProjectFile(fake("project.json", text))).resolves.toEqual(file);
-    await expect(readProjectFile(fake("project.xlsx", text))).rejects.toThrow("只支持 .json 文件");
+    await expect(readProjectFile(fake("project.xlsx", text))).rejects.toThrow("只支持 .whatif 或 .json 文件");
     await expect(readProjectFile(fake("project.json", "not json"))).rejects.toThrow("项目文件");
   });
 

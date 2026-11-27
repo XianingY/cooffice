@@ -8,6 +8,7 @@ import { createMainWindow } from "./window.js";
 import { hardenSessionPermissions } from "./security.js";
 import { isExternalUrlAllowed, registerIpcHandlers, sendMenuAction } from "./ipc.js";
 import { isReadableProjectPath, takeProjectArgument } from "./cli.js";
+import { PathAuthorizer } from "./pathAuthorizer.js";
 import { resolveResources, type ResourcePaths } from "./paths.js";
 import { RecentFilesStore } from "./recentFiles.js";
 import { resolveReleaseUrl, resolveUpdateFeed, runUpdateCheck } from "./updater.js";
@@ -41,6 +42,7 @@ let documentEdited = false;
 let discardConfirmed = false;
 let themeStore: ThemeStore | null = null;
 let recentStore: RecentFilesStore | null = null;
+const authorizer = new PathAuthorizer();
 
 /** Electron resolves "system" for us, so native chrome and CSS stay in sync. */
 function currentThemeState(): ThemeState {
@@ -205,6 +207,7 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers({
     paths,
     recent,
+    authorizer,
     logger: log(),
     getWindow: () => mainWindow,
     getOrigin: () => origin,
@@ -213,6 +216,7 @@ async function bootstrap(): Promise<void> {
     setTheme: applyThemeSetting,
     checkForUpdates,
     openExternal,
+    onRecentChanged: () => refreshMenu(recent),
     setDocumentEdited: (dirty) => {
       documentEdited = dirty;
       mainWindow?.setDocumentEdited(dirty);
@@ -229,6 +233,7 @@ function openPendingProject(): void {
   if (!pendingProjectPath || !mainWindow) return;
   const filePath = pendingProjectPath;
   pendingProjectPath = null;
+  authorizer.allowWrite(filePath);
   const send = () => {
     mainWindow?.webContents.send(IPC.menuAction, { action: "open-recent", filePath } satisfies MenuMessage);
   };

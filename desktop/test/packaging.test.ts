@@ -18,11 +18,13 @@ function section(name: string): string {
 }
 
 describe("packaging configuration", () => {
-  it("registers .json project documents as editable, default documents", () => {
+  it("registers .whatif as default and keeps .json as alternate project association", () => {
     const associations = section("fileAssociations");
-    expect(associations).toContain("ext: json");
-    expect(associations).toContain("role: Editor");
+    expect(associations).toContain("ext: whatif");
     expect(associations).toContain("rank: Default");
+    expect(associations).toContain("ext: json");
+    expect(associations).toContain("rank: Alternate");
+    expect(associations).toContain("role: Editor");
   });
 
   it("uses a per-machine NSIS install so Windows writes the association", () => {

@@ -6,7 +6,7 @@ export const MAX_PROJECT_BYTES = 5 * 1024 * 1024;
 /** Spreadsheets can be large, but the parser holds whole workbooks in memory. */
 export const MAX_SPREADSHEET_BYTES = 25 * 1024 * 1024;
 
-export const PROJECT_EXTENSIONS = ["json"];
+export const PROJECT_EXTENSIONS = ["whatif", "json"];
 export const SPREADSHEET_EXTENSIONS = ["xlsx", "xls", "csv"];
 
 export interface FilePayload {

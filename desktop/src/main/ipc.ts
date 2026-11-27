@@ -4,8 +4,12 @@ import { basename, dirname, join } from "node:path";
 import type {
   AppInfo,
   DroppedFileResult,
+  MenuAction,
+  MenuMessage,
   OpenProjectResult,
   OpenSpreadsheetResult,
+  PolishTextRequest,
+  PolishTextResult,
   SaveFileRequest,
   SaveFileResult,
   ThemeSetting,
@@ -21,6 +25,7 @@ import {
   PROJECT_EXTENSIONS,
   SPREADSHEET_EXTENSIONS,
 } from "./fileAccess.js";
+import { PathAuthorizer } from "./pathAuthorizer.js";
 import { normaliseTheme } from "./theme.js";
 import type { RecentFilesStore } from "./recentFiles.js";
 import type { ShellLogger } from "./logger.js";
@@ -30,6 +35,7 @@ import { runUpdateCheck, type UpdaterLike } from "./updater.js";
 export interface IpcDeps {
   paths: ResourcePaths;
   recent: RecentFilesStore;
+  authorizer: PathAuthorizer;
   logger: ShellLogger;
   getWindow(): BrowserWindow | null;
   getOrigin(): string;
@@ -40,6 +46,8 @@ export interface IpcDeps {
   openExternal(url: string): void;
   /** Mirrors the renderer's dirty flag so the window can guard closing. */
   setDocumentEdited(dirty: boolean): void;
+  /** Rebuild the native application menu whenever recent files change. */
+  onRecentChanged?(): void;
 }
 
 /** Only http(s) and mailto links may leave the app. */
@@ -47,6 +55,20 @@ export function isExternalUrlAllowed(url: string): boolean {
   try {
     const { protocol } = new URL(url);
     return protocol === "https:" || protocol === "http:" || protocol === "mailto:";
+  } catch {
+    return false;
+  }
+}
+
+/** Allow HTTPS endpoints (and localhost/127.0.0.1 HTTP for local LLM servers). */
+export function isPolishEndpointAllowed(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:") return true;
+    return (
+      parsed.protocol === "http:" &&
+      (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "::1")
+    );
   } catch {
     return false;
   }
@@ -78,12 +100,13 @@ async function openDialog(
 /**
  * Dialog + filesystem bridge for the renderer.
  *
- * The renderer never chooses a path on its own: it either supplies bytes for a
- * save dialog or asks for a file that the user picked in an open dialog. That
- * keeps the IPC surface from becoming a general-purpose filesystem API.
+ * The renderer never chooses an arbitrary path on its own: in-place writes and
+ * reveal/recent reads are gated by the main-process PathAuthorizer and recent
+ * files store so a compromised renderer cannot read or overwrite arbitrary
+ * files on disk.
  */
 export function registerIpcHandlers(deps: IpcDeps): void {
-  const { logger } = deps;
+  const { logger, authorizer } = deps;
 
   ipcMain.handle(IPC.appInfo, (): AppInfo => ({
     appName: app.getName(),
@@ -104,7 +127,12 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       return { canceled: true, error: "保存请求无效" };
     }
     let target = request.targetPath;
-    if (!target) {
+    if (target) {
+      if (!authorizer.canWrite(target)) {
+        logger.warn("unauthorized save target rejected", { target });
+        return { canceled: true, error: "目标路径未获得写入授权，请通过保存对话框选择位置" };
+      }
+    } else {
       const result = await saveDialog(window, {
         title: "保存文件",
         defaultPath: join(documentsPath(), basename(request.suggestedName)),
@@ -118,6 +146,8 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       });
       if (result.canceled || !result.filePath) return { canceled: true };
       target = result.filePath;
+      if (classifyFile(target) === "project") authorizer.allowWrite(target);
+      else authorizer.allowReveal(target);
     }
     try {
       writeFileBytes(target, request.data);
@@ -142,7 +172,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     const filePath = result.filePaths[0];
     try {
       const payload = readProjectFile(filePath);
+      authorizer.allowWrite(filePath);
       deps.recent.add(filePath);
+      deps.onRecentChanged?.();
       return {
         canceled: false,
         filePath,
@@ -177,8 +209,8 @@ export function registerIpcHandlers(deps: IpcDeps): void {
   });
 
   /**
-   * Native drops carry a path, not bytes. Reuse the dialog readers so a drop
-   * cannot bypass extension, size or regular-file checks.
+   * Native drops carry a path resolved via webUtils.getPathForFile. Reuse the
+   * dialog readers so a drop cannot bypass extension, size or regular-file checks.
    */
   ipcMain.handle(IPC.openDroppedFile, async (_event, filePath: unknown): Promise<DroppedFileResult> => {
     if (typeof filePath !== "string" || filePath.length === 0) {
@@ -187,11 +219,15 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     const kind = classifyFile(filePath);
     if (!kind) {
       logger.warn("dropped file ignored", { filePath });
-      return { kind: "unsupported", canceled: true, error: "只支持 .json 项目文件或 .xlsx/.xls/.csv 表格" };
+      return { kind: "unsupported", canceled: true, error: "只支持 .whatif/.json 项目文件或 .xlsx/.xls/.csv 表格" };
     }
     try {
       const payload = kind === "project" ? readProjectFile(filePath) : readSpreadsheetFile(filePath);
-      if (kind === "project") deps.recent.add(filePath);
+      if (kind === "project") {
+        authorizer.allowWrite(filePath);
+        deps.recent.add(filePath);
+        deps.onRecentChanged?.();
+      }
       logger.info("file dropped", { filePath, kind, bytes: payload.bytes.byteLength });
       return { kind, canceled: false, filePath, name: payload.name, bytes: payload.bytes };
     } catch (error) {
@@ -203,9 +239,16 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 
   ipcMain.handle(IPC.openRecent, async (_event, filePath: unknown): Promise<OpenProjectResult> => {
     if (typeof filePath !== "string" || filePath.length === 0) return { canceled: true, error: "路径无效" };
+    const known = deps.recent.list().includes(filePath) || authorizer.canWrite(filePath);
+    if (!known) {
+      logger.warn("unauthorized recent open rejected", { filePath });
+      return { canceled: true, filePath, error: "该路径不在最近打开列表中" };
+    }
     try {
       const payload = readProjectFile(filePath);
+      authorizer.allowWrite(filePath);
       deps.recent.add(filePath);
+      deps.onRecentChanged?.();
       return {
         canceled: false,
         filePath,
@@ -214,6 +257,7 @@ export function registerIpcHandlers(deps: IpcDeps): void {
       };
     } catch (error) {
       deps.recent.remove(filePath);
+      deps.onRecentChanged?.();
       const message = error instanceof Error ? error.message : "项目文件已不可用";
       logger.warn("recent project missing", { filePath, message });
       return { canceled: true, filePath, error: message };
@@ -224,6 +268,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 
   ipcMain.handle(IPC.revealPath, (_event, filePath: unknown) => {
     if (typeof filePath !== "string" || filePath.length === 0) return false;
+    if (!authorizer.canReveal(filePath, [deps.paths.dataDir, deps.paths.logsDir])) {
+      logger.warn("unauthorized reveal rejected", { filePath });
+      return false;
+    }
     try {
       if (statSync(filePath).isFile()) {
         shell.showItemInFolder(filePath);
@@ -246,7 +294,10 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 
   ipcMain.handle(IPC.setCurrentFile, (_event, filePath: unknown) => {
     if (typeof filePath !== "string" || filePath.length === 0) return [];
-    return deps.recent.add(filePath);
+    if (!authorizer.canWrite(filePath)) return deps.recent.list();
+    const updated = deps.recent.add(filePath);
+    deps.onRecentChanged?.();
+    return updated;
   });
 
   ipcMain.handle(IPC.checkForUpdates, () => deps.checkForUpdates());
@@ -255,6 +306,54 @@ export function registerIpcHandlers(deps: IpcDeps): void {
     if (typeof url !== "string" || !isExternalUrlAllowed(url)) return false;
     deps.openExternal(url);
     return true;
+  });
+
+  /**
+   * Main-process HTTPS proxy for opt-in AI copy polishing so the renderer can
+   * keep strict `connect-src 'self'` CSP. Keys and texts are never logged or persisted.
+   */
+  ipcMain.handle(IPC.polishText, async (_event, request: PolishTextRequest): Promise<PolishTextResult> => {
+    if (
+      !request ||
+      typeof request.endpoint !== "string" ||
+      typeof request.model !== "string" ||
+      typeof request.key !== "string" ||
+      typeof request.text !== "string" ||
+      !isPolishEndpointAllowed(request.endpoint)
+    ) {
+      return { error: "仅支持 HTTPS 或本机润色接口地址" };
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(request.endpoint, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${request.key}`,
+        },
+        body: JSON.stringify({
+          model: request.model,
+          messages: [
+            {
+              role: "system",
+              content: "只润色中文报告的措辞,保持所有数字、单位和结论不变,不要新增事实。",
+            },
+            { role: "user", content: request.text },
+          ],
+        }),
+      });
+      if (!response.ok) return { error: `润色服务返回错误(${response.status})` };
+      const body = (await response.json()) as { choices?: { message?: { content?: string } }[]; text?: string };
+      const polished = body.choices?.[0]?.message?.content ?? body.text ?? "";
+      if (polished.trim() === "") return { error: "润色结果为空" };
+      return { text: polished.trim() };
+    } catch {
+      return { error: "润色服务请求失败或超时" };
+    } finally {
+      clearTimeout(timer);
+    }
   });
 
   // Synchronous on purpose: the renderer needs the token before its first call.
@@ -283,9 +382,9 @@ export function registerIpcHandlers(deps: IpcDeps): void {
 }
 
 /** Send a menu command to the renderer; ignored while the window is loading. */
-export function sendMenuAction(window: BrowserWindow | null, action: string): void {
+export function sendMenuAction(window: BrowserWindow | null, action: MenuAction): void {
   if (!window || window.isDestroyed() || window.webContents.isLoading()) return;
-  window.webContents.send(IPC.menuAction, action);
+  window.webContents.send(IPC.menuAction, { action } satisfies MenuMessage);
 }
 
 export function createUpdaterCheck(updater: UpdaterLike | null): () => Promise<UpdateCheckResult> {
