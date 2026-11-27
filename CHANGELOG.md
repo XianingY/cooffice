@@ -2,6 +2,24 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
+## [Unreleased]
+
+### Fixed
+
+- **Docker API 路由**：修复 `VITE_API_BASE_URL=/api` 导致前端请求出现 `/api/api/...` 双前缀 404 的问题；`resolveApiConfig` 自动规整 `/` 与 `/api`，容器构建改用 `VITE_API_BASE_URL=/`。
+- **跨域草稿保存与登出 Cookie**：后端 CORS 允许方法补齐 `PUT`；登出 `clearCookie` 对齐 `domain`/`secure`/`sameSite` 选项。
+- **桌面原生菜单 IPC**：修复 `sendMenuAction` 发送裸字符串而非 `MenuMessage` 对象导致原生菜单命令失效的问题，并在 Electron E2E 中直接点击真实菜单项验证。
+- **桌面文件系统授权与拖放**：新增会话级 `PathAuthorizer` 白名单校验 `saveFile(targetPath)`、`openRecent` 与 `revealPath`；拖放接入 Electron 32+ `webUtils.getPathForFile` 并自动刷新「最近打开」菜单；文件关联改为 `.whatif` 默认、`.json` 备选。
+- **并发 401 刷新竞争**：客户端与 SSE 共享单飞刷新互斥，避免并发过期请求触发服务端刷新令牌复用吊销；刷新失败同步清空 `AuthProvider` 登录态；服务端 `AuthService.refresh` 改为 SQLite IMMEDIATE 原子事务轮换。
+- **云端同步与列表体验**：更新云项目改用携带 `expectedVersion` 的单次原子 `PATCH` 保留基线/草稿分离；取消打开确认弹窗不再错绑目标项目；新增「另存为新项目」、项目删除二次确认、分页、搜索防抖与当前项目高亮；修改显示名即时同步会话态。
+- **后端列表查询与 SSE**：`GET /api/projects` 仅投影摘要列并转义 SQL `LIKE` 通配符；对齐服务端 `salesDataSchema` 区域唯一性与同行校验、`buildReport` 块去重与浮点规整；SSE 增加单用户并发上限与 `preClose` 优雅关闭。
+- **核心数值、Word 草稿说明与 AI 润色**：修复浮点累加展示噪音与 CSV 科学计数法解析；草稿版 Word 导出写入准确的草稿说明；AI 润色增加请求超时、关闭取消、单位护栏、基线变更自动清空及桌面主进程 HTTPS 代理（保持渲染端 `connect-src 'self'` CSP）；SheetJS 禁用未使用解析器。
+
+### Changed
+
+- 拆分 `App.tsx` 为 `useLocalPersistence`、`useProjectExport` 与 `useDesktopMenu` 三个职责单一的 Hook。
+- 新增 `npm run lint` 静态不变量检查脚本与 CI `docker` 路由冒烟检查，升级 `better-sqlite3` 至 v13 以完整支持 Node 22–26。
+
 ## [1.6.0] - 2026-11-25（P0/P1/P2 加固）
 
 ### Fixed

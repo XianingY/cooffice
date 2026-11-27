@@ -30,6 +30,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npx playwright install --with-deps chromium
@@ -55,6 +56,31 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: node dist/index.js & sleep 2 && curl -sf http://127.0.0.1:3001/health && curl -sf http://127.0.0.1:3001/ready
+
+  docker:
+    # Verifies the nginx + Fastify compose stack end-to-end so routing or build
+    # arg regressions (such as double /api prefixes) fail PRs before release.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: boot compose stack and smoke-test nginx -> api routing
+        env:
+          JWT_SECRET: ci-only-secret-value-at-least-32-characters
+          COOKIE_SECURE: "false"
+        run: |
+          docker compose up -d --build
+          trap 'docker compose logs; docker compose down -v' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8080/ >/dev/null
+          curl -sf http://127.0.0.1:8080/health >/dev/null
+          curl -sf -X POST http://127.0.0.1:8080/api/auth/register \
+            -H 'content-type: application/json' \
+            -d '{"email":"docker-smoke@test.dev","password":"password123","displayName":"Docker Smoke"}' \
+            | grep -q '"accessToken"'
 
   fullstack:
     # Real Fastify API + SQLite + Vite, so auth and project flows get a PR gate.

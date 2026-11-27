@@ -30,7 +30,7 @@ VITE_API_BASE_URL=http://127.0.0.1:3001
 docker compose up -d --build
 ```
 
-访问 `http://localhost:8080`。API 位于同源 `/api/` 路径下,由 nginx 反向代理到后端(含 SSE 配置)。SQLite 数据保存在 `api-data` 卷中,容器重建不丢数据。
+访问 `http://localhost:8080`。镜像构建时默认使用 `VITE_API_BASE_URL=/`（各端点路径自带 `/api/`），由 nginx 同源反向代理到后端（含 SSE 配置），避免出现 `/api/api/...` 重复前缀。SQLite 数据保存在 `api-data` 卷中,容器重建不丢数据。
 
 `COOKIE_SECURE` 在 compose 中默认为 `true`(localhost 视为安全上下文),只有纯 HTTP 的非本机地址才需要显式设为 `false`。生产环境仍应置于 HTTPS 之后,并把 `CORS_ORIGINS` 限制为实际域名。
 
