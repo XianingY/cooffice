@@ -1,12 +1,22 @@
 import { Document, HeadingLevel, Packer, Paragraph } from "docx";
 import type { ReportModel, SalesData } from "../../core/types";
 
+export type WordExportSource = "baseline" | "draft";
+
 /**
- * Word export from the confirmed baseline and its deterministic ReportModel.
- * The caller decides which snapshot to pass; this adapter never reads draft
- * state and never contacts a server.
+ * Word export from the selected snapshot (baseline by default, or draft when
+ * explicitly chosen in the toolbar) and its deterministic ReportModel.
  */
-export async function createWordReport(data: SalesData, report: ReportModel): Promise<Blob> {
+export async function createWordReport(
+  data: SalesData,
+  report: ReportModel,
+  source: WordExportSource = "baseline",
+): Promise<Blob> {
+  const footerNote =
+    source === "draft"
+      ? "说明：本文件内容来自草稿版本，包含尚未应用的修改。"
+      : "说明：本文件内容来自已确认版本，不包含未应用草稿。";
+
   const children = [
     new Paragraph({ text: report.title, heading: HeadingLevel.TITLE }),
     new Paragraph({ text: `生成时间：${new Date().toISOString()}` }),
@@ -19,7 +29,7 @@ export async function createWordReport(data: SalesData, report: ReportModel): Pr
           text: `${region.name}：previous=${region.previousCell}，current=${region.currentCell}`,
         }),
     ),
-    new Paragraph({ text: "说明：本文件内容来自已确认版本，不包含未应用草稿。" }),
+    new Paragraph({ text: footerNote }),
   ];
 
   return Packer.toBlob(new Document({ sections: [{ children }] }));

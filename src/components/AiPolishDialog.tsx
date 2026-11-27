@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createDeterministicProvider, createHttpProvider } from "../adapters/ai/aiProviders";
 import { assertNumbersPreserved } from "../core/aiGuard";
 import type { ReportModel } from "../core/types";
+import { getDesktop } from "../desktop/bridge";
 import { Dialog } from "./Dialog";
 
 interface AiPolishDialogProps {
@@ -20,11 +21,18 @@ export function AiPolishDialog({ report, onResult, onFallback, onClose }: AiPoli
   const [model, setModel] = useState("");
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    abortRef.current?.abort();
+  }, []);
 
   const original = report.blocks.map((block) => block.text).join("\n");
 
   const handlePolish = async () => {
     setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
     // Deterministic template fallback is always the safe baseline.
     const fallback = createDeterministicProvider();
     try {
@@ -32,16 +40,32 @@ export function AiPolishDialog({ report, onResult, onFallback, onClose }: AiPoli
       if (endpoint.trim() === "" || model.trim() === "" || key.trim() === "") {
         polished = await fallback.polish(original);
       } else {
-        const provider = createHttpProvider({ endpoint, model, key });
-        polished = await provider.polish(original);
+        const desktop = getDesktop();
+        if (desktop?.polishText) {
+          // Desktop renderer runs under strict connect-src 'self' CSP; proxy
+          // the opt-in HTTPS call through the main process without logging keys.
+          const reply = await desktop.polishText({
+            endpoint: endpoint.trim(),
+            model: model.trim(),
+            key,
+            text: original,
+          });
+          if (reply.error || !reply.text) throw new Error(reply.error ?? "润色结果为空");
+          polished = reply.text;
+        } else {
+          const provider = createHttpProvider({ endpoint: endpoint.trim(), model: model.trim(), key });
+          polished = await provider.polish(original, controller.signal);
+        }
         assertNumbersPreserved(original, polished);
       }
-      onResult(polished);
+      if (!controller.signal.aborted) onResult(polished);
     } catch {
+      if (controller.signal.aborted) return;
       const deterministic = await fallback.polish(original);
       onResult(deterministic);
       onFallback("AI 润色失败或改变了报告数值,已回退到确定性模板;原报告未被修改");
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setKey("");
       setBusy(false);
     }

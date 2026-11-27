@@ -99,6 +99,15 @@ export async function readSalesFile(file: File): Promise<SalesData> {
   // advertise .xls, so accepting it here keeps the three routes consistent.
   const lower = file.name.toLowerCase();
   if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls")) throw new Error("只支持 .xlsx 或 .xls 文件");
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellFormula: true });
+  // Disable unused parsers (HTML, styles, dates, number formats) to reduce the
+  // SheetJS attack surface while keeping cell formulas visible for rejection.
+  const workbook = XLSX.read(await file.arrayBuffer(), {
+    type: "array",
+    cellFormula: true,
+    cellHTML: false,
+    cellStyles: false,
+    cellDates: false,
+    cellNF: false,
+  });
   return parseSalesWorkbook(workbook);
 }

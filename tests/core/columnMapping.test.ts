@@ -91,13 +91,17 @@ describe("applyColumnMapping", () => {
     ]);
   });
 
-  it("accepts decimal strings and rejects non-numeric or negative values", () => {
+  it("accepts decimal strings and scientific notation, rejecting non-numeric or negative values", () => {
     expect(
       applyColumnMapping({ ...canonical, rows: [["华东", "10.5", "0"]] }, { region: 0, previous: 1, current: 2 })
         .regions[0],
     ).toMatchObject({ previous: 10.5, current: 0 });
+    expect(
+      applyColumnMapping({ ...canonical, rows: [["华东", "1e3", "1.25E+2"]] }, { region: 0, previous: 1, current: 2 })
+        .regions[0],
+    ).toMatchObject({ previous: 1000, current: 125 });
     expect(() =>
-      applyColumnMapping({ ...canonical, rows: [["华东", "1e3", "5"]] }, { region: 0, previous: 1, current: 2 }),
+      applyColumnMapping({ ...canonical, rows: [["华东", "1e", "5"]] }, { region: 0, previous: 1, current: 2 }),
     ).toThrow("第 2 行");
     expect(() =>
       applyColumnMapping({ ...canonical, rows: [["华东", "100", "-1"]] }, { region: 0, previous: 1, current: 2 }),

@@ -1,4 +1,4 @@
-import { formatGrowth } from "./format";
+import { formatAmount, formatGrowth } from "./format";
 import { planReportBlocks } from "./reportConfig";
 import type { Metrics, ReportBlock, ReportBlockId, ReportConfig, ReportModel, SalesData } from "./types";
 
@@ -20,7 +20,7 @@ export function buildReport(
   const all: Record<ReportBlockId, ReportBlock> = {
     summary: {
       id: "summary",
-      text: `当前总销售额为 ${metrics.totalCurrent} 万元。`,
+      text: `当前总销售额为 ${formatAmount(metrics.totalCurrent)} 万元。`,
       sourceCells: currentCells,
     },
     growthNarrative: {

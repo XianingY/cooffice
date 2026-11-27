@@ -70,6 +70,18 @@ export interface ThemeState {
   resolved: AppliedTheme;
 }
 
+export interface PolishTextRequest {
+  endpoint: string;
+  model: string;
+  key: string;
+  text: string;
+}
+
+export interface PolishTextResult {
+  text?: string;
+  error?: string;
+}
+
 export interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -77,6 +89,7 @@ export interface DesktopBridge {
   openProject(): Promise<OpenDocumentResult>;
   openSpreadsheet(): Promise<OpenDocumentResult>;
   openDroppedFile(filePath: string): Promise<DroppedFileResult>;
+  getPathForFile?(file: File): string | null;
   openRecent(filePath: string): Promise<OpenDocumentResult>;
   recentFiles(): Promise<string[]>;
   revealPath(filePath: string): Promise<boolean>;
@@ -85,6 +98,7 @@ export interface DesktopBridge {
   appInfo(): Promise<AppInfo>;
   checkForUpdates(): Promise<UpdateCheckResult>;
   openExternal(url: string): Promise<boolean>;
+  polishText?(request: PolishTextRequest): Promise<PolishTextResult>;
   getSessionToken(): string;
   /** Synchronous so the palette can be applied before the first paint. */
   getTheme(): ThemeState;

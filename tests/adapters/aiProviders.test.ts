@@ -62,4 +62,18 @@ describe("http provider", () => {
     const init = fetchMock.mock.calls[0][1];
     expect(JSON.stringify(JSON.parse(init.body))).not.toContain("sk-secret");
   });
+
+  it("aborts requests that exceed timeoutMs", async () => {
+    const fetchMock = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+    })) as unknown as typeof fetch;
+    const provider = createHttpProvider({
+      endpoint: "https://api.example.com/v1/polish",
+      key: "k",
+      model: "m",
+      fetch: fetchMock,
+      timeoutMs: 20,
+    });
+    await expect(provider.polish("文本")).rejects.toThrow("aborted");
+  });
 });

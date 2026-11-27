@@ -166,6 +166,11 @@ export default function App() {
     else apply();
   };
 
+  // Stale AI polished copy must not outlive the baseline or block config it was generated from.
+  useEffect(() => {
+    setAiPolishedText("");
+  }, [state.baseline, reportConfig]);
+
   // macOS shows an unsaved-changes dot in the close button.
   useEffect(() => {
     setDocumentEdited(hasUnappliedDraft);
@@ -223,7 +228,7 @@ export default function App() {
     try {
       // Load the DOCX library only when the user actually exports Word.
       const { createWordReport } = await import("./adapters/docx/createWordReport");
-      const blob = await createWordReport(exportData, exportReport);
+      const blob = await createWordReport(exportData, exportReport, exportSource);
       reportSave(
         exportSource === "draft" ? "草稿 Word " : "Word ",
         await saveBlob(blob, {

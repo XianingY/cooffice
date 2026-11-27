@@ -24,4 +24,9 @@ describe("assertNumbersPreserved", () => {
   it("rejects newly introduced numbers", () => {
     expect(() => assertNumbersPreserved("总额 300 万元", "总额 300 万元，环比 5%")).toThrow("数值");
   });
+
+  it("rejects altered or dropped units attached to numbers", () => {
+    expect(() => assertNumbersPreserved("增长 20.00%", "增长 20.00")).toThrow("数值");
+    expect(() => assertNumbersPreserved("总额 300 万元", "总额 300 亿元")).toThrow("数值");
+  });
 });

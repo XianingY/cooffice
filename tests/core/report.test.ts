@@ -38,4 +38,15 @@ describe("buildReport", () => {
     expect(report.blocks[2].text).toBe("暂无销售额第一区域。");
     expect(report.blocks[2].sourceCells).toEqual(["C2"]);
   });
+
+  it("formats floating-point sums without IEEE-754 noise", () => {
+    const decimals = {
+      regions: [
+        { ...salesDemo.regions[0], previous: 0.1, current: 0.1 },
+        { ...salesDemo.regions[1], previous: 0.2, current: 0.2 },
+      ],
+    };
+    const report = buildReport(decimals, computeMetrics(decimals));
+    expect(report.blocks[0].text).toBe("当前总销售额为 0.3 万元。");
+  });
 });

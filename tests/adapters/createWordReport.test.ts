@@ -38,14 +38,16 @@ describe("createWordReport", () => {
     expect(documentXml).toContain("华北：previous=B4，current=C4");
   });
 
-  it("renders the draft report text when given a draft report model", async () => {
+  it("renders the draft report text and accurate draft disclaimer when exporting a draft", async () => {
     const draft = structuredClone(salesDemo);
     draft.regions[0].current = 90;
-    const blob = await createWordReport(draft, buildReport(draft, computeMetrics(draft)));
+    const blob = await createWordReport(draft, buildReport(draft, computeMetrics(draft)), "draft");
     const entries = unzipSync(await readBlobBytes(blob));
     const documentXml = strFromU8(entries["word/document.xml"]).replace(/<[^>]+>/g, "");
 
     expect(documentXml).toContain("当前总销售额为 270 万元。");
     expect(documentXml).not.toContain("当前总销售额为 300 万元。");
+    expect(documentXml).toContain("草稿版本");
+    expect(documentXml).not.toContain("不包含未应用草稿");
   });
 });

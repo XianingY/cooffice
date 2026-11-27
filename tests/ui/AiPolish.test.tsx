@@ -70,6 +70,29 @@ describe("AI polish (opt-in)", () => {
       expect(screen.getByRole("alert")).toHaveTextContent("确定性模板");
     });
   });
+
+  it("clears stale AI polished text once the confirmed baseline changes", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "AI 润色设置" }));
+    const dialog = screen.getByRole("dialog", { name: "AI 润色设置" });
+    await user.type(withinDialog(dialog, "接口地址"), "https://api.example.com/v1/polish");
+    await user.type(withinDialog(dialog, "模型名称"), "test-model");
+    await user.type(withinDialog(dialog, "运行时密钥"), "sk-runtime-only");
+    await user.click(screen.getByRole("button", { name: "润色已确认报告" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("region", { name: "AI 润色结果" })).toBeInTheDocument();
+    });
+
+    const east = screen.getByLabelText("华东当前销售额");
+    await user.clear(east);
+    await user.type(east, "90");
+    await user.click(screen.getByRole("button", { name: "应用修改" }));
+
+    expect(screen.queryByRole("region", { name: "AI 润色结果" })).toBeNull();
+  });
 });
 
 function withinDialog(dialog: HTMLElement, label: string): HTMLElement {

@@ -45,7 +45,7 @@ export function suggestColumnMapping(input: TabularInput): ColumnMapping {
   return mapping;
 }
 
-const DECIMAL = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+const DECIMAL = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
 const CURRENCY_PREFIX = /^[¥￥$€£]+/;
 const CURRENCY_SUFFIX = /[¥￥$€£]+$/;

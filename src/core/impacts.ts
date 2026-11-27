@@ -1,4 +1,4 @@
-import { formatGrowth } from "./format";
+import { formatAmount, formatGrowth } from "./format";
 import { computeMetrics } from "./metrics";
 import { buildReport } from "./report";
 import type { Impact, ImpactId, ImpactKind, ReportBlockId, SalesData } from "./types";
@@ -39,7 +39,14 @@ export function compareSnapshots(baseline: SalesData, draft: SalesData): Impact[
   const beforeLeader = baseline.regions.find((region) => region.id === before.topRegionId);
   const afterLeader = draft.regions.find((region) => region.id === after.topRegionId);
 
-  add("totalCurrent", "metric", "总销售额", `${before.totalCurrent} 万元`, `${after.totalCurrent} 万元`, currentCells);
+  add(
+    "totalCurrent",
+    "metric",
+    "总销售额",
+    `${formatAmount(before.totalCurrent)} 万元`,
+    `${formatAmount(after.totalCurrent)} 万元`,
+    currentCells,
+  );
   add(
     "growthRate",
     "metric",
