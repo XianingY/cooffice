@@ -7,9 +7,27 @@ const region = z.object({
   current: z.number().finite().nonnegative(),
   previousCell: z.string().regex(/^B\d+$/),
   currentCell: z.string().regex(/^C\d+$/),
-}).strict();
+}).strict().refine(
+  (value) => value.previousCell.slice(1) === value.currentCell.slice(1),
+  { message: "Source cells must be on the same row", path: ["currentCell"] },
+);
 
-export const salesDataSchema = z.object({ regions: z.array(region).min(1).max(1000) }).strict();
+export const salesDataSchema = z.object({ regions: z.array(region).min(1).max(1000) }).strict().superRefine(
+  (data, ctx) => {
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    data.regions.forEach((item, index) => {
+      if (ids.has(item.id)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate region id", path: ["regions", index, "id"] });
+      }
+      if (names.has(item.name)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate region name", path: ["regions", index, "name"] });
+      }
+      ids.add(item.id);
+      names.add(item.name);
+    });
+  },
+);
 
 export const reportConfigSchema = z.object({
   blocks: z.array(z.enum(["summary", "growthNarrative", "leaderNarrative"])),

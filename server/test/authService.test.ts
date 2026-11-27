@@ -80,4 +80,22 @@ describe("AuthService", () => {
       await expect(service.refresh(pair.refreshToken, "r3")).rejects.toThrow("invalid or expired");
     } finally { db.close(); }
   });
+
+  it("handles concurrent refresh replays atomically without issuing two sessions", async () => {
+    const { db, service } = setup();
+    try {
+      const pair = await service.register({ email: "race@b.test", password: "password123", displayName: "Race" }, "r1");
+      const [first, second] = await Promise.allSettled([
+        service.refresh(pair.refreshToken, "r2"),
+        service.refresh(pair.refreshToken, "r3"),
+      ]);
+      const fulfilled = [first, second].filter((r) => r.status === "fulfilled");
+      const rejected = [first, second].filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      // Because the concurrent replay was detected, even the winning token is now revoked.
+      const winner = (fulfilled[0] as PromiseFulfilledResult<{ refreshToken: string }>).value;
+      await expect(service.refresh(winner.refreshToken, "r4")).rejects.toThrow("invalid or expired");
+    } finally { db.close(); }
+  });
 });

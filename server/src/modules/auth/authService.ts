@@ -58,7 +58,8 @@ export class AuthService {
   }
 
   async refresh(rawToken: string, requestId: string): Promise<TokenPair> {
-    const record = this.deps.refreshTokens.findByHash(hashToken(rawToken));
+    const oldHash = hashToken(rawToken);
+    const record = this.deps.refreshTokens.findByHash(oldHash);
     if (!record || record.expiresAt <= Date.now()) {
       throw AppError.unauthorized("Refresh token is invalid or expired");
     }
@@ -79,11 +80,41 @@ export class AuthService {
     const user = this.deps.users.findById(record.userId);
     if (!user) throw AppError.unauthorized("Account no longer exists");
 
-    // Revoke the old family entirely; a new token starts a fresh family so
-    // reuse of this token later can be detected without punishing this session.
-    this.deps.refreshTokens.revokeFamily(record.familyId);
-    this.deps.audit.append({ requestId, actorId: user.id, action: "token_refresh", entity: "auth", entityId: user.id });
-    return this.issuePair(user, requestId);
+    // Sign the replacement access JWT before mutating the database so a signing
+    // error or concurrent replay cannot leave the session half-rotated.
+    const accessToken = await this.deps.tokens.signAccess(
+      { sub: user.id, email: user.email, role: user.role },
+      this.deps.accessTtl,
+    );
+    const refreshToken = generateRefreshToken();
+    const outcome = this.deps.refreshTokens.rotateAtomically({
+      oldHash,
+      newHash: hashToken(refreshToken),
+      newFamilyId: randomUUID(),
+      expiresAt: Date.now() + this.deps.refreshTtlMs,
+      onRotate: (userId) => {
+        this.deps.audit.append({ requestId, actorId: userId, action: "token_refresh", entity: "auth", entityId: userId });
+        this.deps.audit.append({ requestId, actorId: userId, action: "tokens_issued", entity: "auth", entityId: userId });
+      },
+      onReuse: (userId) => {
+        this.deps.audit.append({
+          requestId,
+          actorId: userId,
+          action: "token_reuse_detected",
+          entity: "auth",
+          entityId: userId,
+        });
+      },
+    });
+    if (outcome.status !== "ok") {
+      throw AppError.unauthorized("Refresh token is invalid or expired");
+    }
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: ttlToSeconds(this.deps.accessTtl),
+      user: { id: user.id, email: user.email, displayName: user.displayName, role: user.role, createdAt: user.createdAt },
+    };
   }
 
   logout(rawToken: string, requestId: string): void {

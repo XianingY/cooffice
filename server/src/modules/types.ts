@@ -36,16 +36,19 @@ export interface ReportConfig {
   blocks: ("summary" | "growthNarrative" | "leaderNarrative")[];
 }
 
-export interface ProjectRecord {
+export interface ProjectSummaryRecord {
   id: string;
   ownerId: string;
   name: string;
-  baseline: SalesData;
-  draft: SalesData;
-  config: ReportConfig;
   version: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectRecord extends ProjectSummaryRecord {
+  baseline: SalesData;
+  draft: SalesData;
+  config: ReportConfig;
 }
 
 export function toPublicUser(user: UserRecord): PublicUser {

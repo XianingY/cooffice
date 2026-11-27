@@ -92,4 +92,53 @@ describe("SSE integration", () => {
     expect(received).toHaveLength(1);
     unsubscribe();
   });
+
+  it("closes active SSE streams on server close and caps per-user concurrent connections", async () => {
+    db = openDatabase(":memory:");
+    app = await buildApp({ env, db });
+    await app.listen({ host: "127.0.0.1", port: 0 });
+    const address = app.server.address();
+    if (!address || typeof address === "string") throw new Error("unexpected address");
+    const base = `http://127.0.0.1:${address.port}`;
+
+    const reg = await fetch(`${base}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "cap@test.dev", password: "password123", displayName: "Cap" }),
+    });
+    const { accessToken } = (await reg.json()) as { accessToken: string };
+    const created = await fetch(`${base}/api/projects`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ name: "Streamed", baseline: data }),
+    });
+    const { id } = (await created.json()) as { id: string };
+
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+    try {
+      for (let i = 0; i < 10; i += 1) {
+        const res = await fetch(`${base}/api/projects/${id}/events`, {
+          headers: { authorization: `Bearer ${accessToken}` },
+        });
+        expect(res.status).toBe(200);
+        readers.push(res.body!.getReader());
+      }
+
+      const overflow = await fetch(`${base}/api/projects/${id}/events`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      expect(overflow.status).toBe(429);
+
+      // Closing the app must terminate active streams rather than hanging.
+      const reader = readers[0];
+      await app.close();
+      app = undefined;
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+      }
+    } finally {
+      await Promise.allSettled(readers.map((reader) => reader.cancel()));
+    }
+  });
 });

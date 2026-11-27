@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import type { ServerResponse } from "node:http";
+import { AppError } from "../errors/AppError.js";
 import { EventBus } from "./eventBus.js";
 import { currentUserId, makeAuthGuard } from "../modules/auth/authMiddleware.js";
 import type { TokenService } from "../modules/auth/tokens.js";
@@ -14,6 +16,8 @@ export interface SseRouteOptions {
    * CORS hook, so the response headers are written here instead.
    */
   allowedOrigins: string[];
+  /** Cap concurrent open streams per authenticated user to prevent FD exhaustion. */
+  maxConnectionsPerUser?: number;
 }
 
 /**
@@ -38,16 +42,37 @@ export async function registerSseRoutes(
   options: SseRouteOptions,
 ): Promise<void> {
   const { bus, tokens, projects, allowedOrigins } = options;
+  const maxPerUser = options.maxConnectionsPerUser ?? 10;
   const guard = makeAuthGuard(tokens);
+  const activeStreams = new Set<() => void>();
+  const userCounts = new Map<string, number>();
+
+  const closeAllStreams = () => {
+    for (const closeStream of [...activeStreams]) closeStream();
+    activeStreams.clear();
+    userCounts.clear();
+  };
+  // preClose runs before Fastify waits for active HTTP sockets to drain, so
+  // open SSE streams end immediately instead of stalling shutdown.
+  app.addHook("preClose", async () => closeAllStreams());
+  app.addHook("onClose", async () => closeAllStreams());
 
   app.get("/api/projects/:id/events", { preHandler: guard }, async (request, reply) => {
     const { id } = request.params as { id: string };
+    const userId = currentUserId(request);
     // Verify ownership before hijacking: an authenticated user must not be
     // able to stream another user's project changes. Service.get() throws 404
     // for unknown ids and 403 for foreign projects.
-    projects.get(currentUserId(request), id);
+    projects.get(userId, id);
+
+    const openForUser = userCounts.get(userId) ?? 0;
+    if (openForUser >= maxPerUser) {
+      throw new AppError(429, "RATE_LIMITED", "Too many concurrent event streams");
+    }
+    userCounts.set(userId, openForUser + 1);
+
     reply.hijack();
-    const raw = reply.raw;
+    const raw: ServerResponse = reply.raw;
 
     raw.writeHead(200, {
       ...sseCorsHeaders(request.headers.origin, allowedOrigins),
@@ -74,7 +99,16 @@ export async function registerSseRoutes(
       cleaned = true;
       clearInterval(heartbeat);
       unsubscribe();
+      activeStreams.delete(closeStream);
+      const remaining = (userCounts.get(userId) ?? 1) - 1;
+      if (remaining <= 0) userCounts.delete(userId);
+      else userCounts.set(userId, remaining);
     };
+    const closeStream = () => {
+      cleanup();
+      if (!raw.writableEnded) raw.end();
+    };
+    activeStreams.add(closeStream);
     request.raw.on("close", cleanup);
     raw.on("close", cleanup);
   });

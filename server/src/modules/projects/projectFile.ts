@@ -1,28 +1,15 @@
 import { z } from "zod";
 import { AppError } from "../../errors/AppError.js";
 import type { ProjectRecord, ReportConfig, SalesData } from "../types.js";
-
-const regionSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  previous: z.number().finite().nonnegative(),
-  current: z.number().finite().nonnegative(),
-  previousCell: z.string().regex(/^B\d+$/),
-  currentCell: z.string().regex(/^C\d+$/),
-}).strict();
-
-const salesSchema = z.object({ regions: z.array(regionSchema).min(1).max(1000) }).strict();
-const configSchema = z.object({
-  blocks: z.array(z.enum(["summary", "growthNarrative", "leaderNarrative"])),
-}).strict();
+import { reportConfigSchema, salesDataSchema } from "./projectSchemas.js";
 
 const documentSchema = z.object({
   format: z.literal("what-if-report-project"),
   version: z.literal(1),
   name: z.string().min(1).max(120),
-  baseline: salesSchema,
-  draft: salesSchema,
-  config: configSchema,
+  baseline: salesDataSchema,
+  draft: salesDataSchema,
+  config: reportConfigSchema,
 }).strict();
 
 export interface ProjectDocument {

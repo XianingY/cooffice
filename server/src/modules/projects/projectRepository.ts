@@ -1,30 +1,42 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../db/connection.js";
-import type { ProjectRecord, ReportConfig, SalesData } from "../types.js";
+import type { ProjectRecord, ProjectSummaryRecord, ReportConfig, SalesData } from "../types.js";
 
-interface ProjectRow {
+interface ProjectSummaryRow {
   id: string;
   owner_id: string;
   name: string;
-  baseline_json: string;
-  draft_json: string;
-  config_json: string;
   version: number;
   created_at: string;
   updated_at: string;
 }
 
-const mapRow = (row: ProjectRow): ProjectRecord => ({
+interface ProjectRow extends ProjectSummaryRow {
+  baseline_json: string;
+  draft_json: string;
+  config_json: string;
+}
+
+const mapSummaryRow = (row: ProjectSummaryRow): ProjectSummaryRecord => ({
   id: row.id,
   ownerId: row.owner_id,
   name: row.name,
-  baseline: JSON.parse(row.baseline_json) as SalesData,
-  draft: JSON.parse(row.draft_json) as SalesData,
-  config: JSON.parse(row.config_json) as ReportConfig,
   version: row.version,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+const mapRow = (row: ProjectRow): ProjectRecord => ({
+  ...mapSummaryRow(row),
+  baseline: JSON.parse(row.baseline_json) as SalesData,
+  draft: JSON.parse(row.draft_json) as SalesData,
+  config: JSON.parse(row.config_json) as ReportConfig,
+});
+
+/** Escape SQL LIKE wildcards so literal `%`, `_` and `\` search predictably. */
+function escapeLike(term: string): string {
+  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
 
 export interface ProjectListOptions {
   limit?: number;
@@ -42,24 +54,29 @@ export class ProjectRepository {
     return row ? mapRow(row) : null;
   }
 
-  listByOwner(ownerId: string, options: ProjectListOptions = {}): ProjectRecord[] {
+  listByOwner(ownerId: string, options: ProjectListOptions = {}): ProjectSummaryRecord[] {
     const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
     const offset = Math.max(options.offset ?? 0, 0);
     const column = options.sort === "name" ? "name" : "updated_at";
     const direction = options.order === "asc" ? "ASC" : "DESC";
     const search = options.search?.trim();
-    const where = search ? "owner_id = ? AND name LIKE ?" : "owner_id = ?";
-    const params = search ? [ownerId, `%${search}%`, limit, offset] : [ownerId, limit, offset];
+    const where = search ? "owner_id = ? AND name LIKE ? ESCAPE '\\'" : "owner_id = ?";
+    const params = search ? [ownerId, `%${escapeLike(search)}%`, limit, offset] : [ownerId, limit, offset];
     const rows = this.db
-      .prepare(`SELECT * FROM projects WHERE ${where} ORDER BY ${column} ${direction} LIMIT ? OFFSET ?`)
-      .all(...params) as ProjectRow[];
-    return rows.map(mapRow);
+      .prepare(
+        `SELECT id, owner_id, name, version, created_at, updated_at
+         FROM projects WHERE ${where} ORDER BY ${column} ${direction} LIMIT ? OFFSET ?`,
+      )
+      .all(...params) as ProjectSummaryRow[];
+    return rows.map(mapSummaryRow);
   }
 
   countByOwner(ownerId: string, search?: string): number {
     const term = search?.trim();
     const row = term
-      ? this.db.prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ? AND name LIKE ?").get(ownerId, `%${term}%`)
+      ? this.db
+          .prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ? AND name LIKE ? ESCAPE '\\'")
+          .get(ownerId, `%${escapeLike(term)}%`)
       : this.db.prepare("SELECT COUNT(*) AS n FROM projects WHERE owner_id = ?").get(ownerId);
     return (row as { n: number }).n;
   }

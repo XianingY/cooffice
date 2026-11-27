@@ -30,6 +30,11 @@ export function computeMetrics(data: SalesData): Metrics {
   };
 }
 
+function formatAmount(value: number): string {
+  const rounded = Number(value.toFixed(10));
+  return Object.is(rounded, -0) ? "0" : String(rounded);
+}
+
 function formatGrowth(value: number | null): string {
   return value === null ? "不适用" : `${(value * 100).toFixed(2)}%`;
 }
@@ -40,7 +45,7 @@ export function buildReport(data: SalesData, config: ReportConfig): ReportBlock[
   const previousCells = data.regions.map((region) => region.previousCell);
   const leader = data.regions.find((region) => region.id === metrics.topRegionId);
   const all: Record<string, ReportBlock> = {
-    summary: { id: "summary", text: `当前总销售额为 ${metrics.totalCurrent} 万元。`, sourceCells: currentCells },
+    summary: { id: "summary", text: `当前总销售额为 ${formatAmount(metrics.totalCurrent)} 万元。`, sourceCells: currentCells },
     growthNarrative: {
       id: "growthNarrative",
       text: `同比增长率为 ${formatGrowth(metrics.growthRate)}。`,
@@ -52,7 +57,15 @@ export function buildReport(data: SalesData, config: ReportConfig): ReportBlock[
       sourceCells: leader ? [leader.currentCell] : currentCells,
     },
   };
-  return config.blocks.filter((id) => id in all).map((id) => all[id]);
+  const seen = new Set<string>();
+  const ordered: ReportBlock[] = [];
+  for (const id of config.blocks) {
+    if (id in all && !seen.has(id)) {
+      seen.add(id);
+      ordered.push(all[id]);
+    }
+  }
+  return ordered;
 }
 
 export function buildChart(data: SalesData) {

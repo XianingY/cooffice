@@ -79,4 +79,35 @@ export class RefreshTokenRepository {
   deleteExpired(now = Date.now()): number {
     return this.db.prepare("DELETE FROM refresh_tokens WHERE expires_at < ?").run(now).changes;
   }
+
+  /**
+   * Atomically verify, revoke and replace a refresh token inside an IMMEDIATE
+   * transaction so concurrent replays cannot interleave across async JWT
+   * signing or leave the old family revoked without a replacement.
+   */
+  rotateAtomically(input: {
+    oldHash: string;
+    newHash: string;
+    newFamilyId: string;
+    expiresAt: number;
+    now?: number;
+    onRotate?: (userId: string) => void;
+    onReuse?: (userId: string) => void;
+  }): { status: "ok"; userId: string } | { status: "invalid" } | { status: "reused"; userId: string } {
+    const now = input.now ?? Date.now();
+    const run = this.db.transaction(() => {
+      const record = this.findByHash(input.oldHash);
+      if (!record || record.expiresAt <= now) return { status: "invalid" as const };
+      if (record.revokedAt !== null) {
+        this.revokeAllForUser(record.userId, now);
+        input.onReuse?.(record.userId);
+        return { status: "reused" as const, userId: record.userId };
+      }
+      this.revokeFamily(record.familyId, now);
+      this.create(record.userId, input.newHash, input.newFamilyId, input.expiresAt);
+      input.onRotate?.(record.userId);
+      return { status: "ok" as const, userId: record.userId };
+    });
+    return run.immediate();
+  }
 }

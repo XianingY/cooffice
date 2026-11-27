@@ -69,6 +69,23 @@ describe("ProjectRepository", () => {
       expect(repo.listByOwner("other-owner")).toEqual([]);
     } finally { db.close(); }
   });
+
+  it("returns summary rows without baseline/draft blobs and escapes LIKE wildcards", () => {
+    const { db, repo, ownerId } = setup();
+    try {
+      repo.create({ ownerId, name: "Q1_100%_Report", baseline: salesData, draft: salesData, config });
+      repo.create({ ownerId, name: "Q1X100XReport", baseline: salesData, draft: salesData, config });
+
+      const all = repo.listByOwner(ownerId);
+      expect(all).toHaveLength(2);
+      expect("baseline" in all[0]).toBe(false);
+      expect("draft" in all[0]).toBe(false);
+
+      const matched = repo.listByOwner(ownerId, { search: "100%" });
+      expect(matched.map((item) => item.name)).toEqual(["Q1_100%_Report"]);
+      expect(repo.countByOwner(ownerId, "Q1_")).toBe(1);
+    } finally { db.close(); }
+  });
 });
 
 describe("project schemas", () => {
@@ -77,9 +94,31 @@ describe("project schemas", () => {
     expect(createProjectSchema.safeParse({ name: "P", baseline: salesData, malicious: true }).success).toBe(false);
   });
 
-  it("rejects invalid sales data and empty patches", () => {
+  it("rejects invalid sales data, duplicate regions, mismatched cell rows and empty patches", () => {
     expect(createProjectSchema.safeParse({ name: "P", baseline: { regions: [] } }).success).toBe(false);
     expect(createProjectSchema.safeParse({ name: "P", baseline: { regions: [{ ...salesData.regions[0], current: -1 }] } }).success).toBe(false);
+    expect(createProjectSchema.safeParse({
+      name: "P",
+      baseline: { regions: [{ ...salesData.regions[0], previousCell: "B2", currentCell: "C3" }] },
+    }).success).toBe(false);
+    expect(createProjectSchema.safeParse({
+      name: "P",
+      baseline: {
+        regions: [
+          salesData.regions[0],
+          { ...salesData.regions[0], id: "region-2", previousCell: "B3", currentCell: "C3" },
+        ],
+      },
+    }).success).toBe(false);
+    expect(createProjectSchema.safeParse({
+      name: "P",
+      baseline: {
+        regions: [
+          salesData.regions[0],
+          { ...salesData.regions[0], name: "华北", previousCell: "B3", currentCell: "C3" },
+        ],
+      },
+    }).success).toBe(false);
     expect(updateProjectSchema.safeParse({}).success).toBe(false);
   });
 });
