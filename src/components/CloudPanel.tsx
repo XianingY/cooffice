@@ -76,12 +76,22 @@ export function CloudPanel({ baseline, draft, config, onOpenProject }: CloudPane
     setRefreshKey((key) => key + 1);
   };
 
+  if (!cloudEnabled) {
+    return (
+      <details className="panel cloud-panel cloud-panel-collapsed">
+        <summary>云端同步（当前为纯本地模式 · 点击了解自托管）</summary>
+        <p className="hint">
+          未配置后端地址，当前全部导入、试改、报告与导出都在浏览器本地完成，不发起任何网络请求。如需启用账号与跨设备云同步，可在部署时配置{" "}
+          <code>VITE_API_BASE_URL</code> 或使用 Docker Compose / 桌面版。
+        </p>
+      </details>
+    );
+  }
+
   return (
     <section className="panel cloud-panel" aria-labelledby="cloud-title">
       <h2 id="cloud-title">云端同步(可选)</h2>
-      {!cloudEnabled ? (
-        <p className="hint">未配置后端地址,当前为纯本地模式。配置 VITE_API_BASE_URL 后可启用登录与云同步。</p>
-      ) : !online ? (
+      {!online ? (
         <p role="status" className="status-notice">当前离线,本地功能仍可使用。</p>
       ) : !user ? <AuthForms /> : (
         <>

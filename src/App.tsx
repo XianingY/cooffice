@@ -10,6 +10,7 @@ import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
 import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { ConfirmImportDialog } from "./components/ConfirmImportDialog";
+import { DemoBar } from "./components/DemoBar";
 import { DesktopFooter } from "./components/DesktopFooter";
 import { FileImport } from "./components/FileImport";
 import { ImpactList } from "./components/ImpactList";
@@ -23,8 +24,15 @@ import { applyColumnMapping } from "./core/columnMapping";
 import { buildChart } from "./core/chart";
 import { compareSnapshots } from "./core/impacts";
 import { computeMetrics } from "./core/metrics";
-import { buildReport } from "./core/report";
+import { buildReport, formatReportMarkdown } from "./core/report";
 import { DEFAULT_REPORT_CONFIG, normaliseReportConfig } from "./core/reportConfig";
+import {
+  applyScenarioPreset,
+  DEFAULT_TEMPLATE_ID,
+  getScenarioTemplate,
+  type ScenarioPreset,
+  type ScenarioTemplate,
+} from "./core/templates";
 import type { ColumnMapping, ReportConfig, SalesData, TabularInput } from "./core/types";
 import type { ThemeSetting } from "./desktop/bridge";
 import {
@@ -58,7 +66,10 @@ export default function App() {
   const [aiPolishedText, setAiPolishedText] = useState("");
   const [themeSetting, setThemeSetting] = useState<ThemeSetting>(() => currentTheme().setting);
   const [exportSource, setExportSource] = useState<ExportSource>("baseline");
+  const [activeTemplateId, setActiveTemplateId] = useState<string>(DEFAULT_TEMPLATE_ID);
+  const [copiedMarkdown, setCopiedMarkdown] = useState(false);
   const desktop = useMemo(() => getDesktop(), []);
+  const activeTemplate = useMemo(() => getScenarioTemplate(activeTemplateId), [activeTemplateId]);
 
   const { storageWarning, clearStorage } = useLocalPersistence(
     state.baseline,
@@ -256,10 +267,45 @@ export default function App() {
     clearStorage();
     forgetCurrentFilePath();
     dispatch({ type: "clear" });
+    setActiveTemplateId(DEFAULT_TEMPLATE_ID);
     setReportConfig(defaultReportConfig());
     setClearDialogOpen(false);
     setImportError("");
     exporter.clearExportNotices();
+  };
+
+  const handleSelectTemplate = (template: ScenarioTemplate) => {
+    runImport(`示例场景「${template.name}」`, () => {
+      dispatch({ type: "import", data: template.data });
+      setActiveTemplateId(template.id);
+      setImportError("");
+    });
+  };
+
+  const handleApplyPreset = (preset: ScenarioPreset) => {
+    const nextDraft = applyScenarioPreset(state.baseline, preset);
+    const nextImpacts = compareSnapshots(state.baseline, nextDraft);
+    const preferred =
+      nextImpacts.find((item) => item.id === preset.highlightImpactId) ?? nextImpacts[0] ?? null;
+    dispatch({
+      type: "replaceDraft",
+      draft: nextDraft,
+      selectedImpactId: preferred?.id ?? null,
+      sourceCells: preferred?.sourceCells ?? [],
+    });
+  };
+
+  const handleCopyMarkdown = async () => {
+    const targetData = exportSource === "draft" ? state.draft : state.baseline;
+    const targetReport = exportSource === "draft" ? draftReport : baselineReport;
+    const markdown = formatReportMarkdown(targetData, targetReport, exportSource);
+    try {
+      await navigator.clipboard.writeText(markdown);
+      setCopiedMarkdown(true);
+      setTimeout(() => setCopiedMarkdown(false), 2000);
+    } catch {
+      exporter.setExportError("剪贴板不可用，请改用「导出 Word」或手动复制");
+    }
   };
 
   useDesktopMenu(desktop, {
@@ -289,8 +335,14 @@ export default function App() {
 
       <header className="app-header">
         <h1>What-if Report · 数据沙盘</h1>
-        <p>导入固定格式 Excel，试改数值，预览指标与报告结论的变化。</p>
+        <p>导入 Excel / CSV 或试用内置场景，试改数值，即时预览指标、排名与报告结论变化。</p>
       </header>
+
+      <DemoBar
+        activeTemplate={activeTemplate}
+        onSelectTemplate={handleSelectTemplate}
+        onApplyPreset={handleApplyPreset}
+      />
 
       <FileImport
         onImport={(data: SalesData) => {
@@ -375,6 +427,8 @@ export default function App() {
           baselineReport={baselineReport}
           draftReport={draftReport}
           sourceCells={state.sourceCells}
+          onCopyMarkdown={() => void handleCopyMarkdown()}
+          copiedMarkdown={copiedMarkdown}
         />
       </div>
 

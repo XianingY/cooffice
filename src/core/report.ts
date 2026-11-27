@@ -41,3 +41,34 @@ export function buildReport(
     blocks: order.map((id) => all[id]),
   };
 }
+
+/**
+ * Render a deterministic Markdown summary for quick pasting into PRs, wikis,
+ * chat or email without any third-party formatter dependency.
+ */
+export function formatReportMarkdown(
+  data: SalesData,
+  report: ReportModel,
+  source: "baseline" | "draft" = "baseline",
+): string {
+  const badge = source === "draft" ? "草稿版（含未应用修改）" : "已确认版";
+  const lines: string[] = [
+    `# ${report.title}`,
+    "",
+    `> 版本：${badge}`,
+    "",
+    "## 核心结论",
+    "",
+    ...report.blocks.map((block) => `- ${block.text}`),
+    "",
+    "## 数据明细（万元）",
+    "",
+    "| 区域 | 上期 | 当前 | 来源单元格 |",
+    "|---|---:|---:|---|",
+    ...data.regions.map(
+      (region) =>
+        `| ${region.name} | ${formatAmount(region.previous)} | ${formatAmount(region.current)} | ${region.previousCell} / ${region.currentCell} |`,
+    ),
+  ];
+  return lines.join("\n");
+}

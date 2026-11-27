@@ -745,6 +745,84 @@ body {
   margin-top: 10px;
 }
 
+.demo-bar {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.demo-bar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.demo-template-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.demo-template-select select {
+  padding: 6px 10px;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.demo-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-preset-button,
+.copy-md-button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text);
+  padding: 6px 12px;
+  min-height: 36px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.demo-preset-button:hover,
+.copy-md-button:hover {
+  border-color: var(--accent);
+}
+
+.panel-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel-header-row h2 {
+  margin: 0;
+}
+
+.cloud-panel-collapsed summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
 /* Shown while files hover the window; never intercepts the drop itself. */
 .drop-overlay {
   position: fixed;

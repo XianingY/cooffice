@@ -12,6 +12,7 @@ export type ProjectAction =
   | { type: "import"; data: SalesData }
   | { type: "importDocument"; baseline: SalesData; draft: SalesData }
   | { type: "edit"; regionId: string; value: number }
+  | { type: "replaceDraft"; draft: SalesData; selectedImpactId?: ImpactId | null; sourceCells?: string[] }
   | { type: "apply" }
   | { type: "revert" }
   | { type: "selectImpact"; id: ImpactId | null; sourceCells: string[] }
@@ -44,6 +45,14 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
   }
   if (action.type === "selectImpact") {
     return { ...state, selectedImpactId: action.id, sourceCells: action.sourceCells };
+  }
+  if (action.type === "replaceDraft") {
+    return {
+      ...state,
+      draft: structuredClone(action.draft),
+      selectedImpactId: action.selectedImpactId ?? null,
+      sourceCells: action.sourceCells ?? [],
+    };
   }
 
   if (!Number.isFinite(action.value) || action.value < 0) return state;

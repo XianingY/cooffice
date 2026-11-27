@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { salesDemo } from "../../src/fixtures/salesDemo";
 import { computeMetrics } from "../../src/core/metrics";
-import { buildReport } from "../../src/core/report";
+import { buildReport, formatReportMarkdown } from "../../src/core/report";
 
 describe("buildReport", () => {
   it("builds deterministic report blocks with evidence", () => {
@@ -48,5 +48,16 @@ describe("buildReport", () => {
     };
     const report = buildReport(decimals, computeMetrics(decimals));
     expect(report.blocks[0].text).toBe("当前总销售额为 0.3 万元。");
+  });
+
+  it("renders deterministic Markdown summaries for baseline and draft exports", () => {
+    const report = buildReport(salesDemo, computeMetrics(salesDemo));
+    const confirmedMd = formatReportMarkdown(salesDemo, report, "baseline");
+    expect(confirmedMd).toContain("# 销售数据修改影响报告");
+    expect(confirmedMd).toContain("版本：已确认版");
+    expect(confirmedMd).toContain("| 华东 | 100 | 120 | B2 / C2 |");
+
+    const draftMd = formatReportMarkdown(salesDemo, report, "draft");
+    expect(draftMd).toContain("版本：草稿版（含未应用修改）");
   });
 });
