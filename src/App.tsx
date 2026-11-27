@@ -1,19 +1,10 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import {
   isProjectFileName,
   parseProjectFileText,
-  PROJECT_FILE_FILENAME,
   readProjectFile,
-  serialiseProjectFile,
 } from "./adapters/storage/projectFileStorage";
-import { clearProject, loadProject, saveProject } from "./adapters/storage/projectStorage";
 import { importTabularFile } from "./adapters/tabular/importTabularFile";
-import {
-  CONFIRMED_DOCX_FILENAME,
-  CONFIRMED_XLSX_FILENAME,
-  DRAFT_DOCX_FILENAME,
-  DRAFT_XLSX_FILENAME,
-} from "./adapters/xlsx/filenames";
 import { AiPolishDialog } from "./components/AiPolishDialog";
 import { ColumnMappingDialog } from "./components/ColumnMappingDialog";
 import { CloudPanel } from "./components/CloudPanel";
@@ -32,74 +23,31 @@ import { applyColumnMapping } from "./core/columnMapping";
 import { buildChart } from "./core/chart";
 import { compareSnapshots } from "./core/impacts";
 import { computeMetrics } from "./core/metrics";
-import { createProjectFile } from "./core/projectFile";
 import { buildReport } from "./core/report";
 import { DEFAULT_REPORT_CONFIG, normaliseReportConfig } from "./core/reportConfig";
 import type { ColumnMapping, ReportConfig, SalesData, TabularInput } from "./core/types";
 import type { ThemeSetting } from "./desktop/bridge";
 import {
-  applyDesktopShellChrome,
-  bytesToBlob,
   forgetCurrentFilePath,
   getDesktop,
-  saveBlob,
   setDocumentEdited,
   shortPath,
   toFile,
   trackDocument,
-  type SaveBlobOutcome,
 } from "./desktop/bridge";
+import { useDesktopMenu } from "./hooks/useDesktopMenu";
 import { useFileDrop } from "./hooks/useFileDrop";
+import { bootLocalProject, defaultReportConfig, useLocalPersistence } from "./hooks/useLocalPersistence";
+import { useProjectExport } from "./hooks/useProjectExport";
 import { salesDemo } from "./fixtures/salesDemo";
-import { initialProjectState, projectReducer, type ProjectState } from "./state/projectReducer";
+import { projectReducer } from "./state/projectReducer";
 import { currentTheme, initTheme, setTheme, subscribeTheme } from "./theme";
 
-const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-interface BootResult {
-  state: ProjectState;
-  warning: string;
-  config: ReportConfig;
-}
-
-const defaultConfig = (): ReportConfig => ({
-  ...DEFAULT_REPORT_CONFIG,
-  blocks: [...DEFAULT_REPORT_CONFIG.blocks],
-});
-
-function bootProject(): BootResult {
-  const fallback = (warning = ""): BootResult => ({
-    state: initialProjectState(salesDemo),
-    warning,
-    config: defaultConfig(),
-  });
-  try {
-    const document = loadProject();
-    if (document) {
-      return {
-        state: {
-          baseline: document.baseline,
-          draft: document.draft,
-          selectedImpactId: null,
-          sourceCells: [],
-        },
-        warning: "",
-        config: normaliseReportConfig(document.config),
-      };
-    }
-    return fallback();
-  } catch {
-    return fallback("本地草稿读取失败，已载入示例数据，当前页面内仍可继续编辑和导出");
-  }
-}
-
 export default function App() {
-  const [boot] = useState(bootProject);
+  const [boot] = useState(bootLocalProject);
   const [state, dispatch] = useReducer(projectReducer, boot.state);
   const [importError, setImportError] = useState("");
   const [pendingImport, setPendingImport] = useState<{ label: string; apply: () => void } | null>(null);
-  const [exportError, setExportError] = useState("");
-  const [storageWarning, setStorageWarning] = useState(boot.warning);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [pendingCsv, setPendingCsv] = useState<{
     input: TabularInput;
@@ -108,28 +56,16 @@ export default function App() {
   const [reportConfig, setReportConfig] = useState<ReportConfig>(boot.config);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiPolishedText, setAiPolishedText] = useState("");
-  const [saveNotice, setSaveNotice] = useState<{ message: string; path?: string } | null>(null);
   const [themeSetting, setThemeSetting] = useState<ThemeSetting>(() => currentTheme().setting);
   const [exportSource, setExportSource] = useState<ExportSource>("baseline");
-  const skipNextSave = useRef(false);
   const desktop = useMemo(() => getDesktop(), []);
 
-  // Persist only confirmed/draft data. After "clear" the snapshot stays
-  // removed until the user edits or imports again (design spec section 6.5).
-  useEffect(() => {
-    if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
-    try {
-      saveProject(
-        createProjectFile(state.baseline, state.draft, new Date().toISOString(), reportConfig),
-      );
-      setStorageWarning("");
-    } catch {
-      setStorageWarning("本地草稿保存失败，当前页面内仍可继续编辑和导出");
-    }
-  }, [state.baseline, state.draft, reportConfig]);
+  const { storageWarning, clearStorage } = useLocalPersistence(
+    state.baseline,
+    state.draft,
+    reportConfig,
+    boot.warning,
+  );
 
   const baselineMetrics = useMemo(() => computeMetrics(state.baseline), [state.baseline]);
   const draftMetrics = useMemo(() => computeMetrics(state.draft), [state.draft]);
@@ -180,7 +116,7 @@ export default function App() {
   // One theme controller serves both shells; the shell decides where the
   // preference lives and this component only mirrors it for the toolbar.
   useEffect(() => {
-    const unsubscribe = subscribeTheme((state) => setThemeSetting(state.setting));
+    const unsubscribe = subscribeTheme((nextTheme) => setThemeSetting(nextTheme.setting));
     const teardown = initTheme();
     return () => {
       teardown();
@@ -188,60 +124,14 @@ export default function App() {
     };
   }, []);
 
-  const reportSave = (label: string, outcome: SaveBlobOutcome) => {
-    if (!outcome.saved) {
-      setExportError(outcome.error ?? "");
-      return;
-    }
-    setExportError("");
-    setSaveNotice(
-      outcome.filePath
-        ? { message: `${label}已保存到 ${shortPath(outcome.filePath)}`, path: outcome.filePath }
-        : { message: `${label}已开始下载` },
-    );
-  };
-
-  // Exporting the draft lets a what-if result leave the app without first
-  // applying it (which would destroy the comparison baseline).
-  const exportData = exportSource === "draft" ? state.draft : state.baseline;
-  const exportReport = exportSource === "draft" ? draftReport : baselineReport;
-  const exportLabel = exportSource === "draft" ? "草稿 Excel " : "Excel ";
-
-  const handleExportExcel = async () => {
-    try {
-      // SheetJS is only fetched when the user actually exports a workbook.
-      const { createSalesWorkbookBytes } = await import("./adapters/xlsx/downloadWorkbook");
-      const blob = bytesToBlob(createSalesWorkbookBytes(exportData), XLSX_MIME);
-      reportSave(
-        exportLabel,
-        await saveBlob(blob, {
-          suggestedName: exportSource === "draft" ? DRAFT_XLSX_FILENAME : CONFIRMED_XLSX_FILENAME,
-          filterName: "Excel 工作簿",
-          extensions: ["xlsx"],
-        }),
-      );
-    } catch {
-      setExportError("Excel 导出失败，请重试；当前项目未改变");
-    }
-  };
-
-  const handleExportWord = async () => {
-    try {
-      // Load the DOCX library only when the user actually exports Word.
-      const { createWordReport } = await import("./adapters/docx/createWordReport");
-      const blob = await createWordReport(exportData, exportReport, exportSource);
-      reportSave(
-        exportSource === "draft" ? "草稿 Word " : "Word ",
-        await saveBlob(blob, {
-          suggestedName: exportSource === "draft" ? DRAFT_DOCX_FILENAME : CONFIRMED_DOCX_FILENAME,
-          filterName: "Word 文档",
-          extensions: ["docx"],
-        }),
-      );
-    } catch {
-      setExportError("Word 导出失败，请重试；当前项目未改变");
-    }
-  };
+  const exporter = useProjectExport({
+    baseline: state.baseline,
+    draft: state.draft,
+    baselineReport,
+    draftReport,
+    reportConfig,
+    exportSource,
+  });
 
   const handleConfirmMapping = (mapping: ColumnMapping) => {
     if (!pendingCsv) return;
@@ -254,28 +144,6 @@ export default function App() {
       });
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "CSV 数据校验失败");
-    }
-  };
-
-  const handleExportProject = async (inPlace = false) => {
-    try {
-      const snapshot = createProjectFile(
-        state.baseline,
-        state.draft,
-        new Date().toISOString(),
-        reportConfig,
-      );
-      const blob = bytesToBlob(new TextEncoder().encode(serialiseProjectFile(snapshot)), "application/json");
-      const outcome = await saveBlob(blob, {
-        suggestedName: PROJECT_FILE_FILENAME,
-        filterName: "What-if 项目",
-        extensions: ["whatif", "json"],
-        inPlace,
-      });
-      reportSave("项目文件", outcome);
-      if (outcome.saved && outcome.filePath) trackDocument(outcome.filePath);
-    } catch {
-      setExportError("项目文件导出失败，请重试；当前项目未改变");
     }
   };
 
@@ -324,8 +192,6 @@ export default function App() {
       setImportError(error instanceof Error ? error.message : "项目文件导入失败");
     }
   };
-
-  const handleImportProject = (file: File) => void importDroppedFile(file);
 
   const openProjectFromDisk = async () => {
     if (!desktop) return;
@@ -387,74 +253,24 @@ export default function App() {
   ].filter((text): text is string => text !== "");
 
   const handleClear = () => {
-    skipNextSave.current = true;
-    try {
-      clearProject();
-    } catch {
-      setStorageWarning("本地草稿清除失败，当前页面内仍可继续编辑和导出");
-    }
+    clearStorage();
     forgetCurrentFilePath();
     dispatch({ type: "clear" });
-    setReportConfig(defaultConfig());
+    setReportConfig(defaultReportConfig());
     setClearDialogOpen(false);
     setImportError("");
-    setExportError("");
-    setSaveNotice(null);
+    exporter.clearExportNotices();
   };
 
-  // Native menu commands reuse the exact handlers the toolbar buttons call, so
-  // both routes behave identically. A ref keeps the subscription stable.
-  const actionsRef = useRef({
+  useDesktopMenu(desktop, {
     openProjectFromDisk,
     openRecentProject,
-    handleExportProject,
-    handleExportExcel,
-    handleExportWord,
+    handleExportProject: exporter.handleExportProject,
+    handleExportExcel: exporter.handleExportExcel,
+    handleExportWord: exporter.handleExportWord,
     importSpreadsheetFromDisk,
     requestClear: () => setClearDialogOpen(true),
   });
-  actionsRef.current = {
-    openProjectFromDisk,
-    openRecentProject,
-    handleExportProject,
-    handleExportExcel,
-    handleExportWord,
-    importSpreadsheetFromDisk,
-    requestClear: () => setClearDialogOpen(true),
-  };
-
-  useEffect(() => {
-    if (!desktop) return undefined;
-    applyDesktopShellChrome();
-    return desktop.onMenuAction(({ action, filePath }) => {
-      const actions = actionsRef.current;
-      switch (action) {
-        case "open-project":
-          void actions.openProjectFromDisk();
-          break;
-        case "save-project":
-          void actions.handleExportProject(true);
-          break;
-        case "export-excel":
-          void actions.handleExportExcel();
-          break;
-        case "export-word":
-          void actions.handleExportWord();
-          break;
-        case "import-spreadsheet":
-          void actions.importSpreadsheetFromDisk();
-          break;
-        case "clear-project":
-          actions.requestClear();
-          break;
-        case "open-recent":
-          if (filePath) void actions.openRecentProject(filePath);
-          break;
-        default:
-          break;
-      }
-    });
-  }, [desktop]);
 
   const draggingFile = useFileDrop({
     onFile: (file, filePath) => void importDroppedFile(file, filePath),
@@ -494,25 +310,25 @@ export default function App() {
         onApply={() => dispatch({ type: "apply" })}
         onRevert={() => dispatch({ type: "revert" })}
         onClear={() => setClearDialogOpen(true)}
-        onExportExcel={() => void handleExportExcel()}
-        onExportWord={() => void handleExportWord()}
+        onExportExcel={() => void exporter.handleExportExcel()}
+        onExportWord={() => void exporter.handleExportWord()}
         exportSource={exportSource}
         onExportSourceChange={setExportSource}
-        onExportProject={() => void handleExportProject()}
-        onImportProject={handleImportProject}
+        onExportProject={() => void exporter.handleExportProject()}
+        onImportProject={(file) => void importDroppedFile(file)}
         onOpenProjectFromDisk={desktop ? () => void openProjectFromDisk() : undefined}
         theme={themeSetting}
         onCycleTheme={cycleTheme}
       />
-      <StatusMessage error={importError} exportError={exportError} notices={notices} />
-      {saveNotice ? (
+      <StatusMessage error={importError} exportError={exporter.exportError} notices={notices} />
+      {exporter.saveNotice ? (
         <p role="status" className="status-notice save-notice">
-          {saveNotice.message}
-          {saveNotice.path && desktop ? (
+          {exporter.saveNotice.message}
+          {exporter.saveNotice.path && desktop ? (
             <button
               type="button"
               className="link-button"
-              onClick={() => void desktop.revealPath(saveNotice.path!)}
+              onClick={() => void desktop.revealPath(exporter.saveNotice!.path!)}
             >
               在访达中显示
             </button>
@@ -600,7 +416,7 @@ export default function App() {
             setAiPolishedText(text);
             setAiDialogOpen(false);
           }}
-          onFallback={(message) => setExportError(message)}
+          onFallback={(message) => exporter.setExportError(message)}
           onClose={() => setAiDialogOpen(false)}
         />
       ) : null}
