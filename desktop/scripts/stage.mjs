@@ -71,6 +71,24 @@ function lockHash() {
   return createHash("sha256").update(lock).digest("hex").slice(0, 16);
 }
 
+/** Locate either a Node-API prebuild (better-sqlite3 v13+) or a node-gyp build. */
+function findNativeBinary(sqliteDir) {
+  const prebuildsDir = join(sqliteDir, "prebuilds");
+  if (existsSync(prebuildsDir)) {
+    const candidates = [
+      join(prebuildsDir, `${process.platform}-${process.arch}.node`),
+      ...readdirSync(prebuildsDir)
+        .filter((file) => file.endsWith(".node"))
+        .map((file) => join(prebuildsDir, file)),
+    ];
+    const hit = candidates.find((candidate) => existsSync(candidate));
+    if (hit) return { path: hit, isNapiPrebuild: true };
+  }
+  const built = join(sqliteDir, "build", "Release", "better_sqlite3.node");
+  if (existsSync(built)) return { path: built, isNapiPrebuild: false };
+  return null;
+}
+
 function main() {
   if (!existsSync(join(desktopDir, "node_modules", "electron", "package.json"))) {
     fail("desktop 依赖尚未安装，请先运行 npm --prefix desktop install");
@@ -88,13 +106,14 @@ function main() {
   const stampFile = join(buildServer, ".stamp");
   const wanted = `${version}:${lockHash()}`;
   const current = existsSync(stampFile) ? readFileSync(stampFile, "utf8").trim() : "";
-  const nativeBinary = join(buildServer, "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node");
+  const sqliteDir = join(buildServer, "node_modules", "better-sqlite3");
+  const existingBinary = findNativeBinary(sqliteDir);
 
-  if (skipInstall && existsSync(nativeBinary)) {
+  if (skipInstall && existingBinary) {
     console.log("✓ dependencies: skipped (--skip-install)");
     return;
   }
-  if (current === wanted && existsSync(nativeBinary)) {
+  if (current === wanted && existingBinary) {
     console.log(`✓ dependencies: up to date (electron ${version})`);
     return;
   }
@@ -109,16 +128,24 @@ function main() {
     stdio: "inherit",
   });
 
-  console.log("· rebuilding native modules against the electron ABI …");
-  execFileSync(
-    join(desktopDir, "node_modules", ".bin", "electron-rebuild"),
-    ["-f", "-w", "better-sqlite3", "--module-dir", buildServer, "--version", version],
-    { cwd: desktopDir, stdio: "inherit" },
-  );
+  let binary = findNativeBinary(sqliteDir);
+  if (!binary?.isNapiPrebuild) {
+    console.log("· rebuilding native modules against the electron ABI …");
+    execFileSync(
+      join(desktopDir, "node_modules", ".bin", "electron-rebuild"),
+      ["-f", "-w", "better-sqlite3", "--module-dir", buildServer, "--version", version],
+      { cwd: desktopDir, stdio: "inherit" },
+    );
+    binary = findNativeBinary(sqliteDir);
+  }
 
-  if (!existsSync(nativeBinary)) fail("better-sqlite3 原生模块未生成，请检查 electron-rebuild 输出");
+  if (!binary) fail("better-sqlite3 原生模块未生成，请检查依赖安装或 electron-rebuild 输出");
   writeFileSync(stampFile, `${wanted}\n`, "utf8");
-  console.log("✓ dependencies: rebuilt for electron");
+  console.log(
+    binary.isNapiPrebuild
+      ? "✓ dependencies: ready (Node-API prebuild)"
+      : "✓ dependencies: rebuilt for electron",
+  );
 }
 
 main();
