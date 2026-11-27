@@ -1,74 +1,84 @@
 # 贡献指南
 
-感谢你愿意改进 What-if Report。项目优先保证正确性、可验证性和小步交付，而不是快速堆叠功能。
+感谢你愿意改进 What-if Report！项目优先保证**确定性、可验证性、清晰边界和小步交付**。
 
 ## 开始前
 
-1. 阅读 [README](README.md)、[设计文档](docs/superpowers/specs/2026-11-16-what-if-report-design.md)和[路线图](ROADMAP.md)。
+1. 阅读 [README](README.md)（或 [English README](README.en.md)）、[开发指南](docs/development.md) 和 [路线图](ROADMAP.md)。
 2. 对较大改动先创建 Issue，说明用户问题、建议范围和验收标准。
-3. 不在 Issue、PR、测试数据或截图中提交真实业务文件、个人信息、密钥或内部地址。
+3. **切勿**在 Issue、PR、测试数据或截图中提交真实业务文件、个人信息、密钥或内部地址（CI 含全历史 gitleaks 扫描）。
 
-## 本地环境
+## 本地环境（一键初始化）
 
-需要 Node.js 22+ 与 npm。纯前端只需要根依赖：
+需要 Node.js 22+ 与 npm：
 
 ```bash
-npm ci
+# 仅开发前端（零配置、最快）
+npm run setup -- --web
 npm run dev
+
+# 前后端全栈（自动复制 server/.env 并执行 SQLite 迁移）
+npm run setup -- --full
+npm run dev:full
+
+# 全量（前端 + 后端 + Electron 桌面端）
+npm run setup
 ```
 
-全栈或桌面改动还需要各自的依赖与原生编译链（better-sqlite3 需要 Python 与 C++ 工具链）：
+也可以直接使用 GitHub Codespaces（仓库已内置 `.devcontainer/devcontainer.json`）。
+
+首次运行浏览器 / 桌面端 E2E 测试前执行：
 
 ```bash
-npm --prefix server ci                    # 后端
-cp server/.env.example server/.env        # 写入开发用 JWT_SECRET
-npm run server:migrate                    # 初始化 SQLite
-npm --prefix desktop install              # 桌面壳（含 Electron）
+npx playwright install --with-deps chromium
 ```
 
-首次运行浏览器/桌面端到端测试前需执行 `npx playwright install --with-deps chromium`（Linux 上缺少 `--with-deps` 会因系统库不全而失败）。修改示例数据或模板时，需运行 `npm run example:generate` 重新生成 `public/templates` 下的虚构文件。提交前必须通过：
+修改示例数据或模板时，运行 `npm run example:generate` 重新生成 `public/templates` 下的虚构文件。
+
+## 提交前验证
 
 ```bash
-npm run typecheck
-npm test
-npm run test:e2e
-npm run build
+npm run verify            # lint + typecheck + 根 Vitest + 浏览器 E2E + 前后端构建与后端测试
+npm run test:e2e:full     # 改动前后端接口契约时运行（真实 Fastify + SQLite）
+npm run desktop:test      # 改动桌面壳时运行
+npm run test:e2e:desktop  # 改动桌面主进程/preload/IPC 时运行
 ```
 
-改动后端时再跑 `npm --prefix server test`；改动桌面时跑 `npm run desktop:test` 与 `npm run test:e2e:desktop`；改动前后端契约时跑 `npm run test:e2e:full`（CI 也会跑）。
-
-如果只修改文档，可以不运行浏览器测试，但应检查链接、文件路径和事实表述。
+如果只修改文档，可以跳过浏览器测试，但请确保 `npm run lint` 通过且链接与事实准确。
 
 ## 代码边界
 
-- `src/core` 只能包含纯 TypeScript 领域逻辑，不得引用 React、DOM、SheetJS、docx 或 localStorage。
-- 第三方文件格式和浏览器 API 放在 `src/adapters`。
-- React 组件只负责展示和派发用户操作，不复制核心计算。
-- 新行为必须先写失败测试，再做最小实现。
-- 导出只能使用已确认的 `baseline`，不得包含未应用草稿。
-- 不为了通过测试而删除断言、放宽校验或引入服务端。
+- `src/core` 只能包含纯 TypeScript 领域逻辑，不得引用 React、DOM、SheetJS、`docx` 或 `localStorage`。
+- 第三方文件格式和宿主 API 放在 `src/adapters`。
+- React 组件只负责展示和派发用户操作，不复制核心计算逻辑。
+- 导出默认使用已确认的 `baseline`；草稿版导出必须明确标注来源，不得篡改已确认基线。
+- 桌面端所有文件写入与定位必须经过 `PathAuthorizer` 会话级白名单；禁止向渲染进程暴露任意文件系统访问。
+- 访问令牌只存内存，刷新令牌走 HttpOnly Cookie；密钥不得进入仓库、日志、`localStorage` 或项目文件。
+- 新行为必须配对单元测试（修复 Bug 先补复现测试，修改交互同步更新 E2E）。
 
-## 测试要求
+## 5 分钟贡献示例：新增一个沙盘场景模板
 
-- 修复 bug：增加能复现问题的测试。
-- 新功能：增加正常路径和相关边界测试。
-- 修改用户流程：更新 Playwright 测试。
-- 修改输入格式：同步更新校验、示例、README 和设计文档。
+如果你想快速提交第一个 PR，添加一个内置业务场景模板是最顺手的切入点：
 
-## 提交与 PR
-
-1. 创建一个聚焦的小分支，不混入无关格式化或重构。
-2. 提交信息使用祈使式且说明行为，例如 `feat: preview ranking impacts`。
-3. PR 描述说明问题、改动、测试证据和剩余限制。
-4. 接受代码审查，并回应 AI 生成代码与人工编写代码的相同正确性要求。
-5. 合并前确保 CI 全部通过。
+1. 打开 [src/core/templates.ts](src/core/templates.ts)，仿照 `budgetDemo` / `revenueDemo` 新增一份虚构 `SalesData`（3–6 行）与 1–2 个能触发指标/排名变化的 `ScenarioPreset`，将其加入 `SCENARIO_TEMPLATES` 数组。
+2. 运行 `npx vitest run tests/core/templates.test.ts`——现有测试会自动校验新模板的数据结构合法性、不可变性以及每个预设都能产生真实影响项。
+3. 运行 `npm run verify` 确认类型、测试、E2E 和构建全绿。
+4. 创建聚焦的小分支提交 PR（例如 `feat(templates): add inventory turnover scenario template`）。
 
 ## 适合首次贡献的任务
 
-- 增加非法输入测试。
-- 改进错误提示、键盘操作和可访问性。
-- 完善文档、翻译和虚构示例。
-- 优化 Word 报告样式。
-- 在路线图对应版本中实现 CSV 等小范围适配器。
+查看 GitHub 上带 `good first issue` / `help wanted` 标签的真实议题，例如：
 
-首版不接受通用公式引擎、账号系统、云同步、多人协作或整体架构重写。
+- 新增实用业务场景模板或自定义金额单位/列标题。
+- 支持多步撤销 / 重做（Undo / Redo）草稿编辑历史。
+- 为 Word 导出增加汇总表格或内嵌柱状图，或新增 PDF / 打印友好样式。
+- 增加中英文 i18n 词条层与界面语言切换。
+- 改进错误提示、键盘操作和可访问性。
+- 在真实 WPS 桌面客户端上完成兼容性验证并补充说明。
+
+## 提交与 PR
+
+1. 创建一个聚焦的小分支，不混入无关格式化或大规模重写。
+2. 提交信息采用 Conventional Commits，例如 `feat(core): add undo stack`、`fix(cloud): handle conflict status`。
+3. PR 描述说明问题、改动、测试证据和剩余限制。
+4. 合并前确保 CI（`secret` / `web` / `api` / `docker` / `fullstack` / `desktop`）全部通过。

@@ -63,12 +63,14 @@ What-if Report.app/Contents/Resources/
 | 原生菜单 | 文件/编辑/视图/窗口/帮助；撤销、剪切、复制、粘贴全部走系统 role，输入框里 ⌘C/⌘V 正常 |
 | 快捷键 | ⌘O 打开、⌘S 保存（已打开文件就地覆盖）、⌘I 导入表格、⌘E/⇧⌘E 导出 Excel/Word |
 | 原生对话框 | 打开/保存项目、导入 Excel/CSV 都走系统对话框；导出后提示路径并可「在访达中显示」 |
-| 最近打开 | 最多 8 条，文件被删除时自动剔除 |
+| 最近打开 | 最多 8 条，打开/保存/拖拽项目后即时刷新原生菜单，文件被删除时自动剔除 |
 | 窗口状态 | 位置、尺寸、最大化状态持久化；显示器拔掉后自动重新居中，不会跑到屏幕外 |
 | 深色主题 | 「视图 › 外观」切换跟随系统/浅色/深色；选择写入 `state/theme.json`，原生窗框与 CSS 调色板同步，首帧不闪白 |
-| 拖拽导入 | 把 `.json` 项目或 `.xlsx/.xls/.csv` 表格拖进窗口即可导入；主进程复用对话框的扩展名/大小校验并拦截 `file://` 导航 |
+| 拖拽导入 | 把 `.whatif`/`.json` 项目或 `.xlsx/.xls/.csv` 表格拖进窗口即可导入；通过 Electron `webUtils.getPathForFile` 获取路径，主进程复用扩展名/大小校验并拦截 `file://` 导航 |
 | 单实例 | 再次启动会聚焦已有窗口，并把命令行传入的项目文件交给当前实例 |
-| 文档关联 | 双击 `.json` 项目文件即可唤起应用并载入；macOS 写入 `CFBundleDocumentTypes`，Windows 在 per-machine 安装时写入注册表；Linux AppImage 需自行设置默认应用。未保存改动在关闭按钮上显示圆点 |
+| 文档关联 | 双击 `.whatif`（默认）或 `.json`（备选）项目文件即可唤起应用并载入，避免劫持系统中的普通 JSON；未保存改动在关闭按钮上显示圆点 |
+| 路径白名单 | 主进程 `PathAuthorizer` 记录本次会话显式打开/保存的路径，拒绝渲染进程传入任意 `targetPath`、`openRecent` 或 `revealPath` |
+| 桌面 AI 润色 | 通过主进程受控 IPC 发起（仅允许 HTTPS 或本机回环、30 秒超时、不记录密钥），渲染进程保持严格 `connect-src 'self'` CSP |
 | 外链安全 | `window.open`、非本应用跳转一律拦截并交给系统浏览器；相机/麦克风/定位/录屏权限全部拒绝 |
 | 更新检查 | 「检查更新…」读取 `WHATIF_UPDATE_FEED`（仅 https）；发现新版时若配置了 `WHATIF_RELEASE_URL` 可直接打开下载页，未配置则如实说明需手动获取 |
 | 关闭保护 | 存在未应用草稿时关闭窗口会先确认；「取消」留在应用，「放弃修改并关闭」才丢弃 |
@@ -85,7 +87,7 @@ npm run desktop:stage            # 构建前端+后端，并把 API 依赖按 El
 npm run desktop:start            # 启动桌面应用
 ```
 
-`desktop:stage` 产出 `desktop/build/{web,server}`，开发态与打包态加载的是**同一份**运行时产物，避免「开发能跑、打包就崩」。首次会执行一次 `npm ci` + `node-gyp` 编译 better-sqlite3（约 1–3 分钟），之后由 `desktop/build/server/.stamp` 命中缓存。
+`desktop:stage` 产出 `desktop/build/{web,server}`，开发态与打包态加载的是**同一份**运行时产物，避免「开发能跑、打包就崩」。`better-sqlite3` v13 自带跨 ABI 的 Node-API 预构建包，`stage.mjs` 会优先复用预构建包，仅在缺少对应平台预构建时回退到 `electron-rebuild`。
 
 > 为什么不让 Electron 直接复用 `server/node_modules`：better-sqlite3 是原生模块，按 Electron ABI 编译后系统 Node 就加载不了，`npm --prefix server test` 会直接失败。隔离一份依赖是唯一干净的解法。
 
@@ -106,7 +108,7 @@ node desktop/scripts/package.mjs --mac arm64
 - **公证**：设置 `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID` 后 electron-builder 会自动公证；未配置时日志会明确写出 `skipped macOS notarization`。
 - **CI 发布构建**：在 Actions 页手动触发 `Run workflow` 才会执行 `release` job；它只把 dmg/zip/blockmap/latest-mac.yml 上传为构建产物（保留 14 天），**不会推送到 Releases、不会写更新源、不会通知用户**。未配置签名 Secrets 时仍可产出未签名包用于本地验证。
 - **架构**：`electron-builder.yml` 默认同时产出 arm64 与 x64；交叉构建 x64 需要对应架构的编译工具链，CI 里建议分矩阵跑。
-- **文件关联**：`fileAssociations` 把 `.json` 注册为本应用的项目文档：macOS 写入 `CFBundleDocumentTypes`（`Editor` / `Default`），已用未签名 `.app` 的 `Info.plist` 验证。Windows 的 NSIS 只在 `perMachine: true` 时写注册表，因此安装需要管理员权限并落到 Program Files；Linux AppImage 不支持注册，可在系统设置里手动指定默认程序。`.json` 是通用格式，关联后其它 JSON 双击也会打开本应用，但只会提示「项目文件结构无效」，不会改写原文件。
+- **文件关联**：`fileAssociations` 将专属 `.whatif` 注册为默认项目类型（`Editor` / `Default`），并将 `.json` 保留为备选打开方式（`Editor` / `Alternate`），避免安装后劫持系统中的普通 JSON 文件。Windows 的 NSIS 只在 `perMachine: true` 时写注册表，因此安装需要管理员权限并落到 Program Files；Linux AppImage 不支持注册，可在系统设置里手动指定默认程序。
 
 ### 自动更新
 
@@ -146,6 +148,6 @@ E2E 覆盖：窗口启动与页面渲染、`window.desktop` 桥、主题切换�
 
 ## 已知边界
 
-- 文件关联已支持双击 `.json` 唤起应用；Linux AppImage 无法注册文件关联，需在系统设置中把本应用设为默认程序。
+- 文件关联已支持双击 `.whatif`（默认）与 `.json`（备选）唤起应用；Linux AppImage 无法注册文件关联，需在系统设置中把本应用设为默认程序。
 - 拖拽导入只接受单个文件；一次拖入多个时取第一个，其余忽略。
 - 安装包未签名分发时，macOS 首次打开需右键「打开」；正式分发请走签名 + 公证流程。

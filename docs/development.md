@@ -5,7 +5,7 @@
 前后端均为 TypeScript。
 
 - 前端:React 19 + Vite 6 + Vitest + Testing Library + Playwright;SheetJS 处理 xlsx,`docx` 生成 Word。
-- 后端:Fastify 5 + better-sqlite3(WAL)+ jose(JWT)+ Zod(校验)+ pino(日志),运行在 Node 22。
+- 后端:Fastify 5 + better-sqlite3 v13(WAL, Node-API)+ jose(JWT)+ Zod(校验)+ pino(日志),运行在 Node 22+。
 
 ## 目录结构
 
@@ -51,20 +51,21 @@ npm run dev:full            # web :5173 + api :3001
 ## 验证门禁
 
 ```bash
+npm run lint                # 静态不变量检查
 npm run typecheck           # 前端类型
-npm test                    # 全部 Vitest(前端 + 后端)
+npm test                    # 全部 Vitest(前端 + 后端 + 桌面)
 npm run test:e2e            # 前端浏览器测试
 npm run test:e2e:full       # 全栈浏览器测试(真实 API + SQLite)
 npm run build               # 前端构建
 npm run server:build        # 后端编译
-npm run desktop:stage       # 构建前端+后端并按 Electron ABI 准备运行时
+npm run desktop:stage       # 构建前端+后端并准备 Electron 运行时
 npm run desktop:start       # 启动桌面应用
 npm run desktop:test        # 桌面主进程类型检查 + 单测
 npm run test:e2e:desktop    # 真实 Electron 端到端
-npm run verify              # web + API 门禁;桌面与全栈 E2E 不在其中
+npm run verify              # web + API 门禁;桌面与全栈 E2E 单独执行
 ```
 
-当前基线:364 项根 Vitest、132 项后端 Vitest、13 项前端 E2E、2 项全栈 E2E、61 项桌面单测、14 项 Electron E2E 全部通过。全栈 E2E 已进入 CI；`npm run verify` 不含桌面与全栈 E2E，需单独执行。
+最新实测基线见 [验证记录](verification.md)。CI 包含 `secret`、`web`、`api`、`docker`、`fullstack`、`desktop` 六条并行门禁。
 
 ## 代码约束
 
