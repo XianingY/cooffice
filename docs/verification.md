@@ -1,33 +1,33 @@
 # 验证记录
 
-本文档记录 v1.6.0 的本地验收基线与执行方式,便于维护者复现。
+本文档记录 v1.7.0 的本地验收基线与执行方式,便于维护者复现。
 
 ## 门禁命令
 
 ```bash
-npm run verify          # 前端 typecheck + 全部单测 + E2E + 构建 + 后端测试/构建
+npm run verify          # lint + 前端 typecheck + 全部单测 + E2E + 构建 + 后端测试/构建
 npm run test:e2e:full   # 全栈浏览器测试(真实 API + SQLite)
 npm run desktop:test    # 桌面主进程类型检查 + 单测
 npm run test:e2e:desktop # 真实 Electron 端到端(受限环境加 WHATIF_E2E_NO_SANDBOX=1)
 ```
 
 CI 的 `fullstack` job 在每次 push/PR 运行 `test:e2e:full`（真实 Fastify + SQLite + Vite），
-因此认证与项目流程的集成回归有 PR 门禁。`npm run verify` 只覆盖 web 与 API 的本地门禁，
-桌面与全栈 E2E 需要分别执行上面的命令。
+`docker` job 验证 Compose 拓扑与 nginx → API 路由，因此认证与项目流程的集成回归有 PR 门禁。`npm run verify` 只覆盖 web 与 API 的本地门禁，桌面与全栈 E2E 需要分别执行上面的命令。
 
-## 最近一次通过结果(2026-11-24)
+## 最近一次通过结果(2026-11-27)
 
 | 检查 | 结果 |
 |---|---|
 | `gitleaks detect --log-opts=--all`(全历史) | 0 项；`server/test` 的合成 JWT 字符串由 `.gitleaks.toml` 白名单豁免 |
+| `npm run lint` | 通过（版本一致、零误留 `console.log`、Docker 路由防回归） |
 | `npm run typecheck` | 通过 |
-| `npm test`(根 Vitest,含前端/后端/桌面) | 85 文件 / 364 项通过 |
-| `npm run server:test`(后端 Vitest) | 38 文件 / 132 项通过 |
+| `npm test`(根 Vitest,含前端/后端/桌面) | 92 文件 / 400 项通过 |
+| `npm run server:test`(后端 Vitest) | 38 文件 / 137 项通过 |
 | `npm run test:e2e`(浏览器) | 13 项通过 |
 | `npm run test:e2e:full`(真实前后端) | 2 项通过 |
-| `npm run desktop:test`(桌面主进程) | 12 文件 / 61 项通过 |
+| `npm run desktop:test`(桌面主进程) | 14 文件 / 67 项通过 |
 | `npm run test:e2e:desktop`(真实 Electron) | 14 项通过 |
-| `npm run build`(前端生产构建) | 通过,首屏 273 kB(gzip 86 kB)+ 表格 427 kB / Word 171 kB 懒加载块 |
+| `npm run build`(前端生产构建) | 通过,首屏 288.99 kB(gzip 91.51 kB)+ 表格 426.81 kB / Word 171.50 kB 懒加载块 |
 | `npm run server:build` | 通过 |
 | `npm run smoke`(server,真实进程) | 健康/就绪/注册端点通过 |
 | `docker compose config` | 配置有效 |

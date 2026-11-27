@@ -1,8 +1,14 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
 import { openDatabase, type Db } from "../src/db/connection.js";
 import type { Env } from "../src/config/env.js";
+
+const serverPkg = JSON.parse(
+  readFileSync(join(__dirname, "..", "package.json"), "utf8"),
+) as { version: string };
 
 const env: Env = {
   NODE_ENV: "test", HOST: "127.0.0.1", PORT: 0, LOG_LEVEL: "silent",
@@ -28,7 +34,7 @@ describe("OpenAPI documentation", () => {
     expect(doc.openapi).toMatch(/^3\.1/);
     expect(doc.info.title).toBe("What-if Report API");
     // Tracks server/package.json; the document itself reads the manifest.
-    expect(doc.info.version).toBe("1.6.0");
+    expect(doc.info.version).toBe(serverPkg.version);
     expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining([
       "/api/auth/login",
       "/api/projects",

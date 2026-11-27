@@ -2,7 +2,14 @@
 
 本项目采用 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 的结构，并在发布后使用语义化版本。
 
-## [Unreleased]
+## [1.7.0] - 2026-11-27
+
+### Added
+
+- **可扩展场景模板与一键试改体验**：新增 `src/core/templates.ts`（内置区域销售同比、部门预算执行、产品线季度营收 3 套模板）与顶部 `DemoBar`，支持切换示例场景及一键触发「模拟华东下滑 25%（第一名易主）」等预设并自动高亮来源单元格。
+- **一键复制 Markdown**：`formatReportMarkdown` 与报告预览区「复制 Markdown」按钮支持将当前基线或草稿结论及明细表一键复制为 Markdown。
+- **公开演示与贡献者体验**：新增 `README.en.md`、动态演示 `docs/demo.gif`（含 `scripts/record-demo.mjs`）、`npm run setup` 一键初始化脚本、`.devcontainer/devcontainer.json`（GitHub Codespaces 支持），纯本地模式下云同步面板自动折叠为轻量提示。
+- **静态门禁与容器冒烟**：新增 `npm run lint`（版本一致性、零误留 `console.log`、Docker 路由防回归）及 CI `docker` 真实 Compose 路由冒烟任务。
 
 ### Fixed
 

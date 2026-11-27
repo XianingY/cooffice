@@ -1,6 +1,6 @@
 {
   "name": "what-if-report-desktop",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "engines": { "node": ">=22" },
   "description": "Desktop shell for What-if Report: a local-first what-if analysis workbench",
