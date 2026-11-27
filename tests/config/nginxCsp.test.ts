@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { SPA_CSP } from "../../server/src/static/spa";
+import { SPA_CSP } from "../../server/src/static/csp";
 
 const nginx = readFileSync(join(__dirname, "..", "..", "nginx.conf"), "utf8");
 

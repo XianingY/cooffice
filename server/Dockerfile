@@ -2,7 +2,9 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# Skip install scripts because better-sqlite3 v13 ships Node-API prebuilds
+# (including linuxmusl-x64/arm64) and needs no python/C++ toolchain on Alpine.
+RUN npm ci --ignore-scripts
 COPY tsconfig*.json ./
 COPY src ./src
 RUN npm run build
@@ -10,7 +12,8 @@ RUN npm run build
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force \
+  && node -e "import('better-sqlite3').then(m => new m.default(':memory:').close())"
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
