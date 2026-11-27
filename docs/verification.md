@@ -5,7 +5,7 @@
 ## 门禁命令
 
 ```bash
-npm run verify          # lint + 前端 typecheck + 全部单测 + E2E + 构建 + 后端测试/构建
+npm run verify          # lint + 前端 typecheck + 前端单测 + E2E + 构建 + 后端测试/构建
 npm run test:e2e:full   # 全栈浏览器测试(真实 API + SQLite)
 npm run desktop:test    # 桌面主进程类型检查 + 单测
 npm run test:e2e:desktop # 真实 Electron 端到端(受限环境加 WHATIF_E2E_NO_SANDBOX=1)
@@ -21,7 +21,7 @@ CI 的 `fullstack` job 在每次 push/PR 运行 `test:e2e:full`（真实 Fastify
 | `gitleaks detect --log-opts=--all`(全历史) | 0 项；`server/test` 的合成 JWT 字符串由 `.gitleaks.toml` 白名单豁免 |
 | `npm run lint` | 通过（版本一致、零误留 `console.log`、Docker 路由防回归） |
 | `npm run typecheck` | 通过 |
-| `npm test`(根 Vitest,含前端/后端/桌面) | 92 文件 / 400 项通过 |
+| `npm test`(前端 Vitest) | 40 文件 / 196 项通过 |
 | `npm run server:test`(后端 Vitest) | 38 文件 / 137 项通过 |
 | `npm run test:e2e`(浏览器) | 13 项通过 |
 | `npm run test:e2e:full`(真实前后端) | 2 项通过 |
