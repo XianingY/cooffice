@@ -94,4 +94,56 @@ describe("ApiClient", () => {
     const offline = makeClient(vi.fn().mockRejectedValue(new Error("offline")));
     await expect(offline.request("/x")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
   });
+
+  it("does not retry non-idempotent POST requests on 5xx or network error", async () => {
+    const serverFail = vi.fn().mockResolvedValue(json({ error: { code: "INTERNAL_ERROR", message: "boom" } }, 500));
+    await expect(makeClient(serverFail).request("/api/projects", { method: "POST", body: "{}" })).rejects.toBeInstanceOf(ApiError);
+    expect(serverFail).toHaveBeenCalledTimes(1);
+
+    const netFail = vi.fn().mockRejectedValue(new Error("reset"));
+    await expect(makeClient(netFail).request("/api/projects", { method: "POST", body: "{}" })).rejects.toMatchObject({
+      code: "NETWORK_ERROR",
+    });
+    expect(netFail).toHaveBeenCalledTimes(1);
+  });
+
+  it("deduplicates concurrent 401 token refreshes into a single refresh call", async () => {
+    let token = "expired";
+    let refreshCalls = 0;
+    const fetchImpl = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const auth = (init.headers as Headers).get("Authorization");
+      if (auth === "Bearer expired") {
+        return json({ error: { code: "UNAUTHORIZED", message: "expired" } }, 401);
+      }
+      return json({ ok: true });
+    });
+    const client = makeClient(fetchImpl, () => token, async () => {
+      refreshCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      token = "fresh";
+      return true;
+    });
+
+    const results = await Promise.all([
+      client.request<{ ok: boolean }>("/api/projects"),
+      client.request<{ ok: boolean }>("/api/auth/me"),
+    ]);
+    expect(results).toEqual([{ ok: true }, { ok: true }]);
+    expect(refreshCalls).toBe(1);
+  });
+
+  it("aborts requests that exceed timeoutMs", async () => {
+    const fetchImpl = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+    })) as unknown as typeof fetch;
+    const client = new ApiClient({
+      baseUrl: "http://api.test",
+      getAccessToken: () => "tok",
+      onUnauthorized: async () => false,
+      fetchImpl,
+      maxRetries: 0,
+      timeoutMs: 25,
+    });
+    await expect(client.request("/slow")).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+  });
 });

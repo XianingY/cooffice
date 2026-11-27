@@ -5,12 +5,39 @@ import { sessionHeaders } from "../desktop/bridge";
 
 /**
  * Compose the API client at module scope so all components share one instance.
- * The refresh handler is injected separately to avoid an AuthProvider/API cycle.
+ * The refresh handler is injected separately to avoid an AuthProvider/API cycle
+ * and deduplicated so concurrent 401s (including SSE) never replay a rotated
+ * refresh token.
  */
 let refreshHandler: () => Promise<boolean> = async () => false;
+let refreshInFlight: Promise<boolean> | null = null;
+const sessionExpiredListeners = new Set<() => void>();
 
 export function setRefreshHandler(handler: () => Promise<boolean>): void {
   refreshHandler = handler;
+}
+
+export function onSessionExpired(listener: () => void): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}
+
+export function notifySessionExpired(): void {
+  for (const listener of sessionExpiredListeners) listener();
+}
+
+/** Shared single-flight refresh used by both ApiClient and SSE reconnects. */
+export function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = Promise.resolve()
+      .then(() => refreshHandler())
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
 }
 
 /**
@@ -63,7 +90,7 @@ const client = new ApiClient({
   baseUrl,
   getAccessToken: () => tokenStore.get(),
   getSessionHeaders: sessionHeaders,
-  onUnauthorized: () => refreshHandler(),
+  onUnauthorized: () => refreshSession(),
 });
 
 export const api: Api = createApi(client);

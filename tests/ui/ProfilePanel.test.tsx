@@ -31,6 +31,7 @@ describe("ProfilePanel", () => {
     await userEventInstance.type(screen.getByLabelText("新的显示名称"), "New Name");
     await userEventInstance.click(screen.getByRole("button", { name: "保存名称" }));
     expect(await screen.findByRole("status")).toHaveTextContent("New Name");
+    expect(screen.getByLabelText("新的显示名称")).toHaveValue("New Name");
   });
 
   it("changes password and clears the fields", async () => {

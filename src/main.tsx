@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import { api, cloudEnabled, setRefreshHandler } from "./api/factory";
+import { api, cloudEnabled, notifySessionExpired, setRefreshHandler } from "./api/factory";
 import { tokenStore } from "./auth/tokenStore";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./styles.css";
@@ -14,6 +14,7 @@ setRefreshHandler(async () => {
     return true;
   } catch {
     tokenStore.clear();
+    notifySessionExpired();
     return false;
   }
 });

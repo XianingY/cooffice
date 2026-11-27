@@ -8,6 +8,8 @@ export interface ApiClientOptions {
   onUnauthorized(): Promise<boolean>;
   fetchImpl?: typeof fetch;
   maxRetries?: number;
+  /** Per-attempt timeout in milliseconds; 0 disables the timeout. */
+  timeoutMs?: number;
 }
 
 interface ErrorBody {
@@ -16,33 +18,55 @@ interface ErrorBody {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const IDEMPOTENT_METHODS = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
+
+function isIdempotent(method: string | undefined): boolean {
+  return IDEMPOTENT_METHODS.has((method ?? "GET").toUpperCase());
+}
+
 /**
- * Typed fetch client: adds bearer tokens, retries only transient 5xx/network
- * failures (max 3), and attempts one token refresh on 401 without retrying
- * 4xx. Credentials are included so the HttpOnly refresh cookie is sent.
+ * Typed fetch client: adds bearer tokens, retries transient 5xx/network
+ * failures only for idempotent methods (max 3), enforces a per-attempt
+ * timeout, and single-flights 401 token refreshes so concurrent expired
+ * requests cannot trigger refresh-token reuse revocation.
  */
 export class ApiClient {
+  private refreshInFlight: Promise<boolean> | null = null;
+
   constructor(private readonly options: ApiClientOptions) {}
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const doFetch = this.options.fetchImpl ?? globalThis.fetch.bind(globalThis);
     const maxRetries = this.options.maxRetries ?? 3;
+    const timeoutMs = this.options.timeoutMs ?? 15_000;
+    const canRetry = isIdempotent(init.method);
     let refreshed = false;
 
     for (let attempt = 0; ; attempt += 1) {
       let response: Response;
+      const controller = timeoutMs > 0 ? new AbortController() : null;
+      const onCallerAbort = () => controller?.abort();
+      if (controller && init.signal) {
+        if (init.signal.aborted) controller.abort();
+        else init.signal.addEventListener("abort", onCallerAbort, { once: true });
+      }
+      const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
       try {
         response = await doFetch(`${this.options.baseUrl}${path}`, {
           ...init,
+          signal: controller ? controller.signal : init.signal,
           credentials: "include",
           headers: this.buildHeaders(init.headers, init.body !== undefined),
         });
       } catch {
-        if (attempt < maxRetries) {
+        if (canRetry && attempt < maxRetries && !init.signal?.aborted) {
           await sleep(2 ** attempt * 200);
           continue;
         }
         throw networkError();
+      } finally {
+        if (timer !== null) clearTimeout(timer);
+        if (controller && init.signal) init.signal.removeEventListener("abort", onCallerAbort);
       }
 
       if (response.ok) {
@@ -54,16 +78,27 @@ export class ApiClient {
       const isAuthFlow = path === "/api/auth/login" || path === "/api/auth/register" || path === "/api/auth/refresh";
       if (error.status === 401 && !refreshed && !isAuthFlow) {
         refreshed = true;
-        const recovered = await this.options.onUnauthorized();
+        const recovered = await this.runSingleFlightRefresh();
         if (recovered) continue;
       }
-      // Retry transient server errors with capped exponential backoff.
-      if (error.status >= 500 && attempt < maxRetries) {
+      // Retry transient server errors only on idempotent methods.
+      if (canRetry && error.status >= 500 && attempt < maxRetries) {
         await sleep(2 ** attempt * 200);
         continue;
       }
       throw error;
     }
+  }
+
+  private runSingleFlightRefresh(): Promise<boolean> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = Promise.resolve()
+        .then(() => this.options.onUnauthorized())
+        .finally(() => {
+          this.refreshInFlight = null;
+        });
+    }
+    return this.refreshInFlight;
   }
 
   private buildHeaders(input: HeadersInit | undefined, hasBody: boolean): HeadersInit {

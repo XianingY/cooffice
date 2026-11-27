@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { Api } from "../api/endpoints";
 import { ApiError } from "../api/errors";
+import { onSessionExpired } from "../api/factory";
 import { tokenStore } from "./tokenStore";
 
 export interface AuthState {
@@ -21,6 +22,7 @@ interface AuthContextValue extends AuthState {
   signIn(email: string, password: string): Promise<void>;
   signUp(email: string, password: string, displayName: string): Promise<void>;
   signOut(): Promise<void>;
+  updateUser(user: NonNullable<AuthState["user"]>): void;
   clearError(): void;
 }
 
@@ -46,6 +48,19 @@ export function AuthProvider({ api, children, enabled = true }: { api: Api; chil
       .catch(() => { if (active) setState({ user: null, ready: true, error: "" }); });
     return () => { active = false; };
   }, [api, applyTokens, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    return onSessionExpired(() => {
+      setState((previous) =>
+        previous.user ? { user: null, ready: true, error: "登录已过期，请重新登录" } : previous,
+      );
+    });
+  }, [enabled]);
+
+  const updateUser = useCallback((user: NonNullable<AuthState["user"]>) => {
+    setState((previous) => ({ ...previous, user }));
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
@@ -81,8 +96,9 @@ export function AuthProvider({ api, children, enabled = true }: { api: Api; chil
     signIn,
     signUp,
     signOut,
+    updateUser,
     clearError: () => setState((previous) => ({ ...previous, error: "" })),
-  }), [state, signIn, signUp, signOut]);
+  }), [state, signIn, signUp, signOut, updateUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -95,6 +111,7 @@ const LOCAL_CONTEXT: AuthContextValue = {
   signIn: async () => { throw new Error("Auth is not configured"); },
   signUp: async () => { throw new Error("Auth is not configured"); },
   signOut: async () => {},
+  updateUser: () => {},
   clearError: () => {},
 };
 

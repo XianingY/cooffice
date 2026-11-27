@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthProvider";
 
 /** Account settings: display name and password, with readable feedback. */
 export function ProfilePanel({ api }: { api: Api }) {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -25,6 +25,7 @@ export function ProfilePanel({ api }: { api: Api }) {
     setMessage("");
     try {
       const updated = await api.auth.updateProfile(displayName);
+      updateUser(updated);
       setMessage(`显示名称已更新为 ${updated.displayName}`);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.displayMessage : "更新失败");
@@ -39,7 +40,7 @@ export function ProfilePanel({ api }: { api: Api }) {
       await api.auth.changePassword(currentPassword, newPassword);
       setCurrentPassword("");
       setNewPassword("");
-      setMessage("密码已修改");
+      setMessage("密码已修改（所有已登录设备的刷新令牌已失效，请按需重新登录）");
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.displayMessage : "修改密码失败");
     }
